@@ -14,6 +14,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 const overview = ref(null)
@@ -120,7 +121,7 @@ onMounted(load)
           <RouterLink to="/profile" class="text-link">查看详情<ArrowRight /></RouterLink>
         </div>
         <div class="identity-summary">
-          <span class="avatar avatar-large">{{ auth.user.displayName.slice(-2) }}</span>
+          <UserAvatar :user="auth.user" size="large" />
           <div>
             <h3>{{ auth.user.displayName }}</h3>
             <span class="tag tag-blue">{{ auth.user.roleName }}</span>

@@ -5,6 +5,8 @@ import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class BusinessErrors {
@@ -16,8 +18,12 @@ public class BusinessErrors {
     ResponseEntity<ApiResponse<Void>> conflict(DataIntegrityViolationException error) {
         return ResponseEntity.status(409).body(ApiResponse.error("CONFLICT", "记录重复或仍有业务引用，请刷新后检查"));
     }
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class, MissingServletRequestPartException.class})
     ResponseEntity<ApiResponse<Void>> invalid(Exception error) {
         return ResponseEntity.badRequest().body(ApiResponse.error("INVALID_INPUT", "参数格式不正确"));
+    }
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiResponse<Void>> tooLarge(MaxUploadSizeExceededException error) {
+        return ResponseEntity.status(413).body(ApiResponse.error("FILE_TOO_LARGE", "上传文件过大，头像请控制在2MB以内"));
     }
 }

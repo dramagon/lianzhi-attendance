@@ -67,7 +67,7 @@ public class EmployeeService {
         }
         String hash=null;
         if (id==null || (raw.password()!=null && !raw.password().isEmpty())) {
-            if (raw.password()==null || raw.password().length()<12 || raw.password().getBytes(StandardCharsets.UTF_8).length>72) throw BusinessException.invalid("密码至少12位，UTF-8编码不超过72字节");
+            if (raw.password()==null || raw.password().length()<4 || raw.password().getBytes(StandardCharsets.UTF_8).length>72) throw BusinessException.invalid("密码至少4位，UTF-8编码不超过72字节");
             hash=passwords.encode(raw.password());
         }
         var input=new EmployeeInput(username,name,number,raw.role(),raw.companyId(),raw.departmentId(),raw.enabled(),null,raw.workplaceIds());

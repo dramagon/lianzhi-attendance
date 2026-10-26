@@ -16,6 +16,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import BrandMark from '../components/BrandMark.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
 
@@ -123,8 +124,7 @@ async function signOut() {
         <div class="topbar-right">
           <span v-if="info?.demo" class="tag tag-outline demo-badge">演示环境</span
           ><RouterLink to="/profile" class="topbar-user"
-            ><span class="avatar avatar-small">{{ auth.user?.displayName?.slice(-2) }}</span
-            ><span>{{ auth.user?.displayName }}</span></RouterLink
+            ><UserAvatar :user="auth.user" /> <span>{{ auth.user?.displayName }}</span></RouterLink
           ><button
             class="icon-button logout-button"
             aria-label="退出登录"

@@ -24,12 +24,17 @@
 | POST | `/api/auth/logout` | 需要 CSRF | 需要 CSRF | 需要 CSRF | 需要 CSRF |
 | GET | `/api/auth/session` | 401 | 允许 | 允许 | 允许 |
 | GET | `/api/profile` | 401 | 自己 | 自己 | 自己 |
+| POST | `/api/profile/avatar` | 401 | 自己，需CSRF | 自己，需CSRF | 自己，需CSRF |
+| DELETE | `/api/profile/avatar` | 401 | 自己，需CSRF | 自己，需CSRF | 自己，需CSRF |
+| GET | `/api/profile/avatars/{userId}` | 401 | 全局 | 本人或同公司 | 本人 |
 | GET | `/api/management/overview` | 401 | 允许 | 允许 | 403 |
 | GET | `/api/employee/overview` | 401 | 403 | 403 | 自己 |
 | GET | `/api/admin/accounts` | 401 | 允许 | 403 | 403 |
 | GET | `/api/system/modules` | 401 | 允许 | 允许 | 允许 |
 
 账号响应使用 `UserView`，不包含密码哈希。后端通过角色校验授权，前端隐藏菜单和路由守卫只是用户体验的一部分。
+
+UserView新增可空 `avatarUrl`；所有角色可在个人信息上传/移除本人头像。头像GET成功返回JPEG二进制，其他头像接口返回ApiResponse<UserView>，上传限制与文件保存说明见[A模块文档](modules/a-api.md)。账号初始/重设密码最低4位，UTF-8最多72字节，前后端及MySQL启动脚本一致。
 
 ## 当前数据范围
 

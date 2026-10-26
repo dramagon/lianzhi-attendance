@@ -39,8 +39,8 @@ public class AccountBootstrap implements ApplicationRunner {
             accounts.insert("employee", hash, "演示员工", "EMPLOYEE", "DEMO003", departmentId);
             jdbc.update("UPDATE sys_user SET company_id=? WHERE department_id=?",companyId,departmentId);
         } else {
-            if (initialPassword.length() < 12) {
-                throw new IllegalStateException("首次启动非演示环境必须设置至少12位的 ADMIN_INITIAL_PASSWORD");
+            if (initialPassword.length() < 4) {
+                throw new IllegalStateException("首次启动非演示环境必须设置至少4位的 ADMIN_INITIAL_PASSWORD");
             }
             accounts.insert("admin", passwords.encode(initialPassword), "系统管理员", "ADMIN", "ADMIN001", null);
         }

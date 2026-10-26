@@ -33,6 +33,7 @@ public class DataScope {
     }
     public void employee(Authentication authentication, Long userId, Long companyId) {
         UserAccount actor = actor(authentication);
+        if (actor.id().equals(userId)) return;
         if (actor.role().equals("EMPLOYEE")) {
             if (!actor.id().equals(userId)) throw BusinessException.forbidden();
         } else company(authentication, companyId);

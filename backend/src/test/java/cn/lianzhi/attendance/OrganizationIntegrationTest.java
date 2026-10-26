@@ -125,6 +125,15 @@ class OrganizationIntegrationTest {
         write("POST","/api/employees",employee("duplicate","EMPLOYEE",companyId),"admin").andExpect(status().isOk());
         write("POST","/api/employees",employee("duplicate","EMPLOYEE",companyId),"admin").andExpect(status().isConflict());
     }
+    @Test void fourCharacterPasswordCanBeAssignedAndUsedButThreeIsRejected() throws Exception {
+        var body=employee("fourpass","EMPLOYEE",companyId);
+        body.put("password","123");
+        write("POST","/api/employees",body,"admin").andExpect(status().isBadRequest());
+        body.put("password","1234");
+        write("POST","/api/employees",body,"admin").andExpect(status().isOk());
+        mvc.perform(post("/api/auth/login").with(csrf()).param("username","fourpass").param("password","1234"))
+                .andExpect(status().isOk());
+    }
     @Test void legacyDepartmentCanBeRetiredAfterEmployeesHaveMoved() throws Exception {
         jdbc.update("INSERT INTO sys_department(name) VALUES('旧版未分配部门')");
         Long legacy=jdbc.queryForObject("SELECT id FROM sys_department WHERE name='旧版未分配部门'",Long.class);

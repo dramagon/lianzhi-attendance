@@ -35,7 +35,7 @@ ADMIN维护全局；HR只查询本公司，维护本公司部门/场所及普通
 - Company：`id,name,enabled`。Department：`id,companyId,name,enabled`。名称去首尾空白，1～100字。
 - EmployeeView：`userId,username,employeeNo,displayName,role,companyId,companyName,departmentId,departmentName,enabled,createdAt`。userId就是sys_user.id，不新增登录身份；不含密码、哈希、auth_version。
 - EmployeeInput：`username,displayName,employeeNo,role,companyId,departmentId,enabled,password,workplaceIds`。新增账号为3～50位字母/数字/点/横线/下划线；PUT不得改username，保留旧版短账号兼容。姓名1～100字，工号1～30字且全局唯一。role为ADMIN/HR/EMPLOYEE。
-- 新增密码至少12位、UTF-8编码最多72字节，BCrypt落库；PUT的password省略或空字符串表示保留。非平台ADMIN必须有启用公司；部门可空，否则必须启用且同公司。workplaceIds必须提供，最多100个、不重复，空数组解除绑定；场所须启用且同公司。
+- 新增密码至少4位、UTF-8编码最多72字节，BCrypt落库；PUT的password省略或空字符串表示保留。非平台ADMIN必须有启用公司；部门可空，否则必须启用且同公司。workplaceIds必须提供，最多100个、不重复，空数组解除绑定；场所须启用且同公司。
 - WorkplaceInput：`companyId,name,latitude,longitude,coordinateSystem,radiusMeters,enabled`；WorkplaceView增加id，其余相同。纬度[-90,90]、经度[-180,180]，最多7位小数；坐标系为WGS84/GCJ02/BD09；半径为10～10000米的整数。
 - query匹配姓名/账号/工号，最长100字。所有分页与筛选在服务端执行；原 `/api/admin/accounts` 保留全量只读兼容行为。
 
@@ -54,6 +54,22 @@ ADMIN维护全局；HR只查询本公司，维护本公司部门/场所及普通
 3. B使用 `WorkplaceService.activeForEmployee(Authentication,userId)`，按员工真实公司返回有效绑定，最多100个（绑定写入上限）。C展示历史可查询完整绑定。B计算距离前必须统一coordinateSystem。
 4. 当前未实现考勤、审批、统计与AI业务，也不生成考勤记录。A2在V3和B的考勤调整服务公布后使用V4推进。
 
+## 个人头像
+
+所有启用账号（ADMIN、HR、EMPLOYEE）都可维护本人头像，未分配公司的HR仍可访问本人资料/头像，不能因此访问他人的公司业务。
+
+| 方法 | 路径 | 行为 |
+| --- | --- | --- |
+| POST | `/api/profile/avatar` | multipart/form-data，字段file；需CSRF，只写当前认证账号，返回更新后的UserView |
+| DELETE | `/api/profile/avatar` | 需CSRF，恢复名称头像，返回更新后的UserView |
+| GET | `/api/profile/avatars/{userId}` | 验证员工范围后返回image/jpeg，不存在404，不可匿名读取 |
+
+UserView在原字段之外新增可空avatarUrl，登录/会话/个人资料/管理员账号列表同步返回。页面使用统一头像组件：默认显示姓名的简短名称，系统/演示管理员显示“管理员”，不再截取末尾的“理员”；上传后在顶栏、本人资料、员工首页和账号列表显示图片。
+
+输入仅支持真实JPG/PNG，最大2MB、宽高不超过4096像素。服务端根据实际图片解码格式校验，忽略客户端文件名，不接受SVG或伪造图片；统一居中裁剪并编码为320×320 JPEG，只保存处理后的图片。上传不会改变登录身份或撤销自己的会话。
+
+默认存放 `backend/data/avatars/`（运行目录为backend），通过数据源URL的散列子目录隔离不同数据库，再使用userId命名。可用AVATAR_DIRECTORY配置保存根目录；部署/备份须保留该目录，数据库与头像文件共同持久化。不使用请求路径写文件，不改V1/V2、不占用B的V3版本；真实头像和本机文件不提交Git。测试生成的图像存于临时目录或忽略目录。
+
 ## 地图与定位
 
 场所页支持手工坐标、设备定位（WGS84，提示精度）与高德点击选点（GCJ02）。本机 `frontend/.env.local` 可配置 `VITE_AMAP_KEY`、`VITE_AMAP_SECURITY_CODE`，重启Vite生效；属于浏览器SDK配置，不要提交本机凭据。未配置显示“地图选点尚未接入”；加载失败明确提示，不伪造定位。
@@ -70,4 +86,4 @@ V2新增org_company、workplace、employee_workplace，扩展sys_department/sys_
 
 数据库复核纠正了此前受限端口检查的误判：MySQL80原本已运行且监听3306；未重装/重启服务或重设root密码。使用用户提供的本机凭据建立 `lianzhi` 专用账号及库，V1/V2实际迁移通过；非演示模式仅创建一个初始管理员。初始化脚本复跑保留账号和数据。
 
-`scripts/test-mysql.ps1` 在独立 `lianzhi_verify` 库运行22项检查，其中20项组织/认证集成测试使用真实MySQL，2项迁移/并发隔离夹具仍使用H2，不将后两项称为MySQL验证。根凭据、应用随机密码和验证库密码均留在Git忽略目录，未提交。实际浏览器与重启结果见[验证记录](../verification.md)。剩余为外部地图、设备定位、A2审批和B/C完整链路。
+`scripts/test-mysql.ps1` 在独立 `lianzhi_verify` 库运行29项检查，其中27项组织/认证/头像集成测试使用真实MySQL，2项迁移/并发隔离夹具仍使用H2，不将后两项称为MySQL验证。根凭据、应用密码和验证库密码均留在Git忽略目录，未提交。实际浏览器与重启结果见[验证记录](../verification.md)。剩余为外部地图、设备定位、A2审批和B/C完整链路。

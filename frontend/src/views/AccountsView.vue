@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Search, Refresh, Lock } from '@element-plus/icons-vue'
 import http from '../api'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const accounts = ref([])
 const keyword = ref('')
@@ -90,7 +91,7 @@ onMounted(load)
             ><tr v-for="u in filtered" :key="u.id">
               <td>
                 <div class="table-user">
-                  <span class="avatar avatar-small">{{ u.displayName.slice(-2) }}</span>
+                  <UserAvatar :user="u" />
                   <div>
                     <b>{{ u.displayName }}</b
                     ><small>{{ u.username }}</small>

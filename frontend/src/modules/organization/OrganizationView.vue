@@ -411,12 +411,12 @@ onMounted(async () => {
               </option>
             </select></label
           ><label>
-            {{ editingId ? '重设密码（留空保留）' : '初始密码（至少12位）'
+            {{ editingId ? '重设密码（留空保留）' : '初始密码（至少4位）'
             }}<input
               v-model="form.password"
               type="password"
               :required="!editingId"
-              minlength="12"
+              minlength="4"
               maxlength="72"
               autocomplete="new-password" /></label
         ></template>

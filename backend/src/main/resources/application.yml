@@ -28,3 +28,4 @@ mybatis:
     local-cache-scope: statement
 lianzhi:
   demo: false
+  avatar-directory: ${AVATAR_DIRECTORY:./data/avatars}

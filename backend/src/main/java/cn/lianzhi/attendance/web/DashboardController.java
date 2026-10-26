@@ -47,7 +47,7 @@ public class DashboardController {
     @GetMapping("/admin/accounts")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<UserView>> users() {
-        return ApiResponse.ok(mapper.findAll().stream().map(UserView::from).toList());
+        return ApiResponse.ok(mapper.findAll().stream().map(accounts::view).toList());
     }
 
     @GetMapping("/profile")

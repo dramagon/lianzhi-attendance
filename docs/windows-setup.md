@@ -52,7 +52,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-mysql-backen
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-mysql.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
 ```
 
-测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证20项使用真实MySQL，另2项显式隔离的迁移/并发夹具仍是H2。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。当前29项检查中，组织/认证/头像27项使用真实MySQL，另2项显式隔离的迁移/并发夹具仍是H2。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
 
 ### 手动配置
 
@@ -70,7 +70,7 @@ GRANT ALL PRIVILEGES ON lianzhi.* TO 'lianzhi'@'localhost';
 $env:SPRING_PROFILES_ACTIVE = 'mysql'
 $env:DB_USERNAME = 'lianzhi'
 $env:DB_PASSWORD = '替换为你自己的数据库密码'
-$env:ADMIN_INITIAL_PASSWORD = '替换为至少12位的初始管理员密码'
+$env:ADMIN_INITIAL_PASSWORD = '替换为至少4位的初始管理员密码'
 powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 ```
 

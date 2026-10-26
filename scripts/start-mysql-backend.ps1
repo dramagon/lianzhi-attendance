@@ -5,8 +5,8 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 if (-not $LocalConfig) { $LocalConfig = Join-Path $projectRoot 'artifacts/mysql-app.local.ps1' }
 if (-not (Test-Path -LiteralPath $LocalConfig)) { throw 'Run scripts/setup-mysql.ps1 first, or supply -LocalConfig with the existing project credentials.' }
 . ([ScriptBlock]::Create([System.IO.File]::ReadAllText($LocalConfig, [System.Text.Encoding]::UTF8)))
-if (-not $env:DB_USERNAME -or -not $env:DB_PASSWORD -or $env:ADMIN_INITIAL_PASSWORD.Length -lt 12) {
-    throw 'DB_USERNAME, DB_PASSWORD and ADMIN_INITIAL_PASSWORD (at least 12 characters) are required in the local config.'
+if (-not $env:DB_USERNAME -or -not $env:DB_PASSWORD -or $env:ADMIN_INITIAL_PASSWORD.Length -lt 4) {
+    throw 'DB_USERNAME, DB_PASSWORD and ADMIN_INITIAL_PASSWORD (at least 4 characters) are required in the local config.'
 }
 if ($JavaHome) { $env:JAVA_HOME = $JavaHome }
 if (-not $env:JAVA_HOME -or -not (Test-Path -LiteralPath (Join-Path $env:JAVA_HOME 'bin/java.exe'))) {

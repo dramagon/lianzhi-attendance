@@ -76,7 +76,7 @@ if ($CheckOnly) { Write-Host 'Check-only completed. No database, account or app 
 $userExists = [int](Invoke-LocalMysql "SELECT COUNT(*) FROM mysql.user WHERE User='lianzhi' AND Host='localhost';" $adminUser $adminPassword)
 if (Test-Path -LiteralPath $localConfig) {
     . ([ScriptBlock]::Create([System.IO.File]::ReadAllText($localConfig, [System.Text.Encoding]::UTF8)))
-    if ($env:DB_USERNAME -ne 'lianzhi' -or -not $env:DB_PASSWORD -or $env:ADMIN_INITIAL_PASSWORD.Length -lt 12) {
+    if ($env:DB_USERNAME -ne 'lianzhi' -or -not $env:DB_PASSWORD -or $env:ADMIN_INITIAL_PASSWORD.Length -lt 4) {
         throw 'The existing local app config is incomplete. It has not been overwritten.'
     }
 } else {
