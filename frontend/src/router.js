@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import attendanceRoutes from './modules/attendance/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,6 +15,7 @@ const router = createRouter({
       path: '/',
       component: () => import('./layouts/AppLayout.vue'),
       children: [
+        ...attendanceRoutes,
         { path: '', redirect: '/workbench' },
         {
           path: 'workbench',

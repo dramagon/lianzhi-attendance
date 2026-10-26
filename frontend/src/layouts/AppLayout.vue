@@ -28,6 +28,7 @@ const info = ref(null)
 const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
+  { path: '/attendance', name: '考勤工作台', icon: Calendar },
   { path: '/profile', name: '个人信息', icon: User },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
