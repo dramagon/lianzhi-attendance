@@ -1,5 +1,7 @@
 # 第一阶段接口与权限约定
 
+三人协作的新增API分别记录在 [A：组织与审批](modules/a-api.md)、[B：考勤与人脸](modules/b-api.md)、[C：报表与AI](modules/c-api.md)。跨模块约定见 [公共约定](team/contracts.md)。下文保留已实现的第一阶段接口。
+
 浏览器通过同源 `/api` 访问。成功响应格式：`{"code":"OK","message":"操作成功","data":...}`。认证失败为 HTTP 401；权限或 CSRF 校验失败为 HTTP 403；错误响应的 `data` 为 null。
 
 ## 登录流程
