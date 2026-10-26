@@ -1,11 +1,15 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import http, { write } from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import MapPicker from './MapPicker.vue'
 
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const isAdmin = computed(() => auth.user?.role === 'ADMIN')
+const accountFlow = computed(() => isAdmin.value && route.query.from === 'accounts')
 const tabs = { companies: '公司', departments: '部门', employees: '员工', workplaces: '办公场所' }
 const paths = {
   companies: '/organizations/companies',
@@ -29,6 +33,13 @@ const busy = ref(false),
 const dialog = ref(null)
 const dialogVisible = ref(false)
 const editingId = ref(null)
+const dialogTitle = computed(() =>
+  accountFlow.value && tab.value === 'employees'
+    ? editingId.value
+      ? '管理账号'
+      : '分配账号'
+    : `${editingId.value ? '编辑' : '新增'}${tabs[tab.value]}`,
+)
 const form = reactive({})
 const formDepartments = computed(() =>
   departments.value.filter((d) => d.companyId === form.companyId && d.enabled),
@@ -141,6 +152,10 @@ function changeCompany() {
   form.departmentId = null
   form.workplaceIds = []
 }
+function dialogClosed() {
+  dialogVisible.value = false
+  if (accountFlow.value) router.replace('/accounts')
+}
 async function save() {
   if (saving.value) return
   saving.value = true
@@ -175,6 +190,7 @@ async function save() {
               }
     await write(editingId.value ? 'put' : 'post', url, payload)
     dialog.value.close()
+    if (accountFlow.value) return
     success.value = '已保存到数据库。员工资料或权限变更后，原有会话需重新登录。'
     await refresh()
   } catch (e) {
@@ -203,7 +219,23 @@ function locate() {
     { enableHighAccuracy: true, timeout: 15000 },
   )
 }
-onMounted(refresh)
+onMounted(async () => {
+  await refresh()
+  if (!accountFlow.value || error.value) return
+  if (route.query.action === 'assign') await edit(null)
+  else if (route.query.action === 'edit') {
+    const userId = Number(route.query.userId)
+    if (!Number.isSafeInteger(userId) || userId < 1) {
+      error.value = '账号标识无效'
+      return
+    }
+    try {
+      await edit(await http.get(`/employees/${userId}`))
+    } catch (e) {
+      error.value = e.message
+    }
+  }
+})
 </script>
 
 <template>
@@ -338,12 +370,22 @@ onMounted(refresh)
   <dialog
     ref="dialog"
     class="org-dialog"
-    @close="dialogVisible = false"
-    :aria-label="`${editingId ? '编辑' : '新增'}${tabs[tab]}`"
+    @close="dialogClosed"
+    :aria-label="dialogTitle"
     @cancel="!saving || $event.preventDefault()"
   >
     <form @submit.prevent="save">
-      <h2>{{ editingId ? '编辑' : '新增' }}{{ tabs[tab] }}</h2>
+      <h2>{{ dialogTitle }}</h2>
+      <p v-if="tab === 'employees'" class="muted small-text">
+        {{
+          editingId
+            ? '可调整账号角色、重设密码或停用账号。密码留空则保持原密码。'
+            : '同时建立登录账号与人员档案。选择角色并设置初始密码，保存后即可用该账号登录。'
+        }}
+      </p>
+      <p v-if="accountFlow && !editingId" class="muted small-text">
+        员工和人事账号需选择公司；如果尚未建立公司，请先在“组织与场所”添加公司。
+      </p>
       <p v-if="formError" class="notice" role="alert">{{ formError }}</p>
       <div class="org-form">
         <template v-if="tab === 'employees'"
@@ -473,7 +515,7 @@ onMounted(refresh)
         >
           取消</button
         ><button class="button button-primary" :disabled="saving">
-          {{ saving ? '正在保存…' : '保存' }}
+          {{ saving ? '正在保存…' : accountFlow && !editingId ? '分配账号' : '保存' }}
         </button>
       </div>
     </form>
