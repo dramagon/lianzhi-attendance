@@ -5,12 +5,16 @@ import { useAuthStore } from '../stores/auth'
 import http from '../api'
 const auth = useAuthStore()
 const user = ref(null)
+const employee = ref(null)
+const workplaces = ref([])
 const error = ref('')
 async function load() {
   error.value = ''
   try {
     user.value = await http.get('/profile')
     auth.user = user.value
+    employee.value = await http.get('/employees/me')
+    workplaces.value = await http.get(`/employees/${employee.value.userId}/workplaces`)
   } catch (e) {
     error.value = e.message
   }
@@ -40,6 +44,21 @@ onMounted(load)
     <section class="panel">
       <div class="panel-heading"><h2>基础资料</h2></div>
       <dl class="profile-details">
+        <div>
+          <dt>所属公司</dt>
+          <dd>{{ employee?.companyName || '暂未分配' }}</dd>
+        </div>
+        <div>
+          <dt>办公场所</dt>
+          <dd>
+            {{
+              workplaces
+                .filter((p) => p.enabled)
+                .map((p) => p.name)
+                .join('、') || '暂未绑定'
+            }}
+          </dd>
+        </div>
         <div>
           <dt>登录账号</dt>
           <dd>{{ user.username }}</dd>

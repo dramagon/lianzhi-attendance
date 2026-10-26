@@ -13,8 +13,8 @@ public record UserView(Long id, String username, String displayName, String role
             default -> "员工";
         };
         List<String> permissions = switch (account.role()) {
-            case "ADMIN" -> List.of("dashboard:management", "accounts:read", "profile:read", "roadmap:read");
-            case "HR" -> List.of("dashboard:management", "profile:read", "roadmap:read");
+            case "ADMIN" -> List.of("dashboard:management", "accounts:read", "organization:manage", "profile:read", "roadmap:read");
+            case "HR" -> List.of("dashboard:management", "organization:manage", "profile:read", "roadmap:read");
             default -> List.of("dashboard:employee", "profile:read", "roadmap:read");
         };
         return new UserView(account.id(), account.username(), account.displayName(), account.role(),

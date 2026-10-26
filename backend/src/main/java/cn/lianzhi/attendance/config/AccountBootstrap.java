@@ -29,12 +29,15 @@ public class AccountBootstrap implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (accounts.count() != 0) return;
         if (demo) {
-            jdbc.update("INSERT INTO sys_department(name) VALUES (?)", "演示部门");
+            jdbc.update("INSERT INTO org_company(name) VALUES (?)", "演示公司");
+            Long companyId = jdbc.queryForObject("SELECT id FROM org_company WHERE name='演示公司'",Long.class);
+            jdbc.update("INSERT INTO sys_department(name,company_id) VALUES (?,?)", "演示部门",companyId);
             Long departmentId = jdbc.queryForObject("SELECT MIN(id) FROM sys_department", Long.class);
             String hash = passwords.encode("Lianzhi@2026");
             accounts.insert("admin", hash, "演示管理员", "ADMIN", "DEMO001", departmentId);
             accounts.insert("hr", hash, "演示人事", "HR", "DEMO002", departmentId);
             accounts.insert("employee", hash, "演示员工", "EMPLOYEE", "DEMO003", departmentId);
+            jdbc.update("UPDATE sys_user SET company_id=? WHERE department_id=?",companyId,departmentId);
         } else {
             if (initialPassword.length() < 12) {
                 throw new IllegalStateException("首次启动非演示环境必须设置至少12位的 ADMIN_INITIAL_PASSWORD");

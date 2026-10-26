@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import java.nio.charset.StandardCharsets;
 
 @Configuration
@@ -26,15 +27,15 @@ public class SecurityConfig {
         return username -> {
             UserAccount account = accounts.findByUsername(username);
             if (account == null) throw new UsernameNotFoundException("账号或密码错误");
-            return User.withUsername(account.username()).password(account.passwordHash())
-                    .roles(account.role()).disabled(!Boolean.TRUE.equals(account.enabled())).build();
+            return new SessionUser(account);
         };
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json, AccountService accounts) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json, AccountService accounts, AccountMapper mapper) throws Exception {
         return http
                 .csrf(Customizer.withDefaults())
+                .addFilterBefore(new AccountSessionFilter(mapper,json), AuthorizationFilter.class)
                 .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/csrf", "/api/system/info", "/error").permitAll()

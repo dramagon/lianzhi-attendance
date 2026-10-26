@@ -155,6 +155,13 @@ onMounted(load)
             <p>查看账号与角色分配</p>
           </div>
           <ArrowRight /></RouterLink
+        ><RouterLink v-if="auth.can('organization:manage')" to="/organization"
+          ><span class="quick-icon blue"><Location /></span>
+          <div>
+            <b>组织与场所</b>
+            <p>维护员工与办公地点</p>
+          </div>
+          <ArrowRight /></RouterLink
         ><RouterLink to="/profile"
           ><span class="quick-icon purple"><Document /></span>
           <div>
@@ -190,7 +197,7 @@ onMounted(load)
           <h3>{{ item.name }}</h3>
           <p>{{ item.description }}</p>
         </div>
-        <span>待开发</span>
+        <span>{{ item.name === '组织与场所' ? '基础已接通' : '待开发' }}</span>
       </article>
     </div>
   </template>

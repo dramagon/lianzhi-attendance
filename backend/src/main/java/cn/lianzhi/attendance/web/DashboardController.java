@@ -2,6 +2,8 @@ package cn.lianzhi.attendance.web;
 
 import cn.lianzhi.attendance.common.ApiResponse;
 import cn.lianzhi.attendance.identity.*;
+import cn.lianzhi.attendance.employee.EmployeeMapper;
+import cn.lianzhi.attendance.organization.OrganizationMapper;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +16,22 @@ import java.util.Map;
 public class DashboardController {
     private final AccountMapper mapper;
     private final AccountService accounts;
-    public DashboardController(AccountMapper mapper, AccountService accounts) { this.mapper = mapper; this.accounts = accounts; }
+    private final EmployeeMapper employees;
+    private final OrganizationMapper organizations;
+    public DashboardController(AccountMapper mapper, AccountService accounts, EmployeeMapper employees, OrganizationMapper organizations) { this.mapper = mapper; this.accounts = accounts; this.employees=employees; this.organizations=organizations; }
 
     @GetMapping("/management/overview")
     @PreAuthorize("hasAnyRole('ADMIN','HR')")
-    public ApiResponse<Map<String, Object>> management() {
+    public ApiResponse<Map<String, Object>> management(Authentication authentication) {
+        var actor=mapper.findByUsername(authentication.getName());
+        if (actor.role().equals("HR")) {
+            Long companyId=actor.companyId();
+            return ApiResponse.ok(Map.of("totalAccounts",companyId==null?0:employees.count(companyId,null,""),
+                    "enabledAccounts",companyId==null?0:employees.countEnabled(companyId),
+                    "roleCount",companyId==null?0:employees.countRoles(companyId),
+                    "departmentCount",companyId==null?0:organizations.countDepartments(companyId),
+                    "attendanceAvailable",false,"date",LocalDate.now(ZoneId.of("Asia/Shanghai")).toString()));
+        }
         return ApiResponse.ok(Map.of("totalAccounts", mapper.count(), "enabledAccounts", mapper.countEnabled(),
                 "roleCount", mapper.countRoles(), "departmentCount", mapper.countDepartments(),
                 "attendanceAvailable", false, "date", LocalDate.now(ZoneId.of("Asia/Shanghai")).toString()));

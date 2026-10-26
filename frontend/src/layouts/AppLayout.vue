@@ -28,11 +28,16 @@ const info = ref(null)
 const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
+  {
+    path: '/organization',
+    name: '组织与场所',
+    icon: OfficeBuilding,
+    permission: 'organization:manage',
+  },
   { path: '/profile', name: '个人信息', icon: User },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
 const upcoming = [
-  { name: '组织与场所', icon: OfficeBuilding },
   { name: '考勤与审批', icon: Calendar },
   { name: 'AI 业务助手', icon: ChatDotRound },
 ]

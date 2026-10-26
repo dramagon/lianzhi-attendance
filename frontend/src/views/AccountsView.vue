@@ -41,7 +41,7 @@ onMounted(load)
     <span class="tag tag-blue">管理员专属</span>
   </div>
   <div class="notice">
-    <Lock /><span>当前提供账号查询。新增员工、修改资料和停用账号将在员工管理模块开放。</span>
+    <Lock /><span>此页保留账号查询；新增员工、修改资料和停用账号请前往“组织与场所”。</span>
   </div>
   <section class="panel">
     <div class="table-toolbar">

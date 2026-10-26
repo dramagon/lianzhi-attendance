@@ -41,7 +41,7 @@ $env:ADMIN_INITIAL_PASSWORD = '替换为至少12位的初始管理员密码'
 powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 ```
 
-首次启动会自动执行 Flyway 迁移，并创建 `admin` 账号。后续数据库已有账号时，不会再次创建或覆盖账号，修改环境变量也不会重置已有密码。MySQL 模式不创建 `hr` 和 `employee` 演示账号，新增员工将在第二阶段实现。
+首次启动会自动执行 Flyway 迁移，并创建 `admin` 账号。后续数据库已有账号时，不会再次创建或覆盖账号，修改环境变量也不会重置已有密码。MySQL 模式不创建演示账号；ADMIN登录后通过“组织与场所”建立公司、部门、场所，再创建员工和分配HR。
 
 默认连接本机 3306。如需其他数据库地址，使用 `DB_URL` 环境变量。数据库密码、初始管理员密码放在本机环境变量中，切勿写入仓库。
 
@@ -64,4 +64,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 | 登录后刷新跳回登录 | 是否混用了 localhost 和 127.0.0.1；请统一使用 README 地址 |
 | MySQL 启动报错 | 数据库是否建立、环境变量、账号权限和 3306 端口 |
 
-本轮实际验证环境为 Linux + Java 17 + Chromium；Windows 脚本和本机 MySQL 连接需要在 R9000P 上首次运行时确认。
+2026-10-26已在本机Windows运行后端、前端构建和浏览器测试。机器安装了JDK17，但JAVA_HOME原先指向JDK8；运行项目时需在当前终端设置 `$env:JAVA_HOME='C:\Program Files\Java\jdk-17'`，无需改动其他项目的全局配置。Node24.12.0满足最低版本，团队仍推荐22LTS。MySQL客户端8.0.28可用，但3306未监听；尚未验证真实MySQL连接和迁移。
+
+本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。本轮Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
+
+旧V1库升级后账号/部门保留，company_id为空；由ADMIN明确建立公司、部门并调整员工归属，HR分配公司前无公司业务访问权。不要删除原库来绕过升级。浏览器完整验收建议使用另一个空演示库或独立内存库，避免验收账号进入原有数据。
