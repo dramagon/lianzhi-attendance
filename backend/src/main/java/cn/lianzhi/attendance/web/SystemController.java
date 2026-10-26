@@ -21,7 +21,7 @@ public class SystemController {
     public ApiResponse<List<ModuleInfo>> modules() {
         return ApiResponse.ok(List.of(
                 new ModuleInfo(1, "系统基础与登录权限", "登录、会话、角色权限和个人信息", "COMPLETED"),
-                new ModuleInfo(2, "公司、员工与办公场所", "基础档案已接通；地图凭据与真实MySQL待验证", "IN_PROGRESS"),
+                new ModuleInfo(2, "公司、员工与办公场所", "基础档案与本机MySQL已验证；地图与设备定位待验证", "IN_PROGRESS"),
                 new ModuleInfo(3, "二维码与基础考勤", "动态二维码、定位校验、上下班打卡", "PLANNED"),
                 new ModuleInfo(4, "人脸识别考勤", "人脸录入、身份比对与活体检测", "PLANNED"),
                 new ModuleInfo(5, "考勤业务与审批", "请假、补卡、加班及审批记录", "PLANNED"),

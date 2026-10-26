@@ -17,7 +17,7 @@
 - 中文界面，适配电脑和手机窄屏。
 - BCrypt 密码存储、HttpOnly 会话 Cookie、CSRF 校验；数据库通过 Flyway 自动迁移。
 
-**尚未实现：**打卡、人脸识别、考勤审批、统计报表和 AI 助手。真实MySQL、地图服务凭据与实际设备定位仍待验证；地图未配置时明确提示。页面不生成虚假的出勤数据。
+**尚未实现：**打卡、人脸识别、考勤审批、统计报表和 AI 助手。A1已连接本机MySQL8.0.28并通过集成验证；地图服务凭据与实际设备定位仍待验证，地图未配置时明确提示。页面不生成虚假的出勤数据。
 
 ## 当前界面
 
@@ -76,6 +76,8 @@ npm run dev
 ## 切换 MySQL
 
 参见 [Windows 环境与 MySQL 启动说明](docs/windows-setup.md)。MySQL 模式与演示数据库完全独立；首次启动需要通过环境变量设置管理员密码，不提供生产默认密码。
+
+本机凭据配置完成后，使用 `scripts/setup-mysql.ps1` 初始化专用库/账号，`scripts/start-mysql-backend.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'` 启动MySQL模式。随机密码仅保存于忽略目录 `artifacts/mysql-app.local.ps1`，管理员初始账号为 `admin`。`scripts/test-mysql.ps1` 使用独立的 `lianzhi_verify` 库进行后端测试，不对正式库运行测试夹具。
 
 ## 验证
 
