@@ -24,7 +24,7 @@ public class SystemController {
                 new ModuleInfo(2, "公司、员工与办公场所", "基础档案与本机MySQL已验证；地图与设备定位待验证", "IN_PROGRESS"),
                 new ModuleInfo(3, "二维码与基础考勤", "动态二维码、定位校验、上下班打卡", "PLANNED"),
                 new ModuleInfo(4, "人脸识别考勤", "人脸录入、身份比对与活体检测", "PLANNED"),
-                new ModuleInfo(5, "考勤业务与审批", "请假、补卡、加班及审批记录", "PLANNED"),
+                new ModuleInfo(5, "考勤业务与审批", "申请内容校验与页面已接通；保存和考勤回写待接入", "IN_PROGRESS"),
                 new ModuleInfo(6, "数据分析与报表", "出勤统计、工时分析与报表导出", "PLANNED"),
                 new ModuleInfo(7, "企业知识库与 AI 助手", "制度问答、考勤查询与业务辅助", "PLANNED"),
                 new ModuleInfo(8, "移动适配与多端使用", "完善员工移动端与 uni-app 适配", "PLANNED"),

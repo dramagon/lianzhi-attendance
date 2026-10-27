@@ -36,10 +36,12 @@ const navigation = [
     permission: 'organization:manage',
   },
   { path: '/profile', name: '个人信息', icon: User },
+  { path: '/approvals', name: '我的申请', icon: Calendar, permission: 'approvals:read' },
+  { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
 const upcoming = [
-  { name: '考勤与审批', icon: Calendar },
+  { name: '考勤打卡', icon: Calendar },
   { name: 'AI 业务助手', icon: ChatDotRound },
 ]
 watch(

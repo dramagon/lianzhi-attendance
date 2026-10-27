@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import organizationRoutes from './modules/organization/routes'
+import approvalRoutes from './modules/approval/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,7 @@ const router = createRouter({
       component: () => import('./layouts/AppLayout.vue'),
       children: [
         ...organizationRoutes,
+        ...approvalRoutes,
         { path: '', redirect: '/workbench' },
         {
           path: 'workbench',
