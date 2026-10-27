@@ -52,7 +52,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-mysql-backen
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-mysql.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
 ```
 
-测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。当前29项检查中，组织/认证/头像27项使用真实MySQL，另2项显式隔离的迁移/并发夹具仍是H2。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API集成使用真实MySQL；审批纯策略不连接数据库，隔离迁移/并发及候选DDL夹具使用H2，分类结果见验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+
+A2候选V4仅位于docs，不随启动自动迁移。B的V3及调整服务尚未接通时，申请校验可用，但创建/查询申请返回503；不能把候选SQL复制到真实库以绕过未完成的业务接入。
 
 ### 手动配置
 

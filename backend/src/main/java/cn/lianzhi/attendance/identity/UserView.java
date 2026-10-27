@@ -13,9 +13,9 @@ public record UserView(Long id, String username, String displayName, String role
             default -> "员工";
         };
         List<String> permissions = switch (account.role()) {
-            case "ADMIN" -> List.of("dashboard:management", "accounts:read", "organization:manage", "profile:read", "roadmap:read");
-            case "HR" -> List.of("dashboard:management", "organization:manage", "profile:read", "roadmap:read");
-            default -> List.of("dashboard:employee", "profile:read", "roadmap:read");
+            case "ADMIN" -> List.of("dashboard:management", "accounts:read", "organization:manage", "profile:read", "roadmap:read", "approvals:read", "approvals:manage");
+            case "HR" -> List.of("dashboard:management", "organization:manage", "profile:read", "roadmap:read", "approvals:read", "approvals:manage");
+            default -> List.of("dashboard:employee", "profile:read", "roadmap:read", "approvals:read");
         };
         return new UserView(account.id(), account.username(), account.displayName(), account.role(),
                 name, account.employeeNo(), account.departmentName(), account.enabled(), account.createdAt(), permissions, null);

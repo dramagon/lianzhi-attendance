@@ -2,6 +2,8 @@
 
 三人协作API分别记录在 [A：组织、员工与场所（A1已接通）](modules/a-api.md)、[B：考勤与人脸](modules/b-api.md)、[C：报表与AI](modules/c-api.md)。跨模块约定见 [公共约定](team/contracts.md)。下文保留基础接口。
 
+A2.1新增 `/api/approvals/status` 与需CSRF的 `/api/approvals/preview`，仅提供能力状态和本人内容校验。创建/记录查询当前明确503，管理队列另检查ADMIN/HR；真实存储、审批和考勤回写待B依赖及V4整合后开放，详见A模块文档。
+
 浏览器通过同源 `/api` 访问。成功响应格式：`{"code":"OK","message":"操作成功","data":...}`。认证失败为 HTTP 401；权限或 CSRF 校验失败为 HTTP 403；错误响应的 `data` 为 null。
 
 ## 登录流程

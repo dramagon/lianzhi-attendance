@@ -33,7 +33,7 @@ $env:SPRING_DATASOURCE_USERNAME = 'lianzhi_verify'
 $env:SPRING_DATASOURCE_PASSWORD = $env:LIANZHI_VERIFY_PASSWORD
 $env:SPRING_PROFILES_ACTIVE = 'test'
 Write-Host 'Running tests against lianzhi_verify. The app database lianzhi is not used by these tests.'
-Write-Host 'Organization/Security/Avatar integration tests use MySQL; explicit isolated migration/concurrency fixtures remain H2.'
+Write-Host 'API integration tests use MySQL; pure policy tests and explicit isolated schema/concurrency fixtures are separate.'
 Push-Location (Join-Path $projectRoot 'backend')
 try {
     & .\mvnw.cmd -B -ntp test

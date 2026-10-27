@@ -1,6 +1,6 @@
 # A模块接口记录
 
-负责人A。A1基础档案已接通，审批尚未实现。本机MySQL8.0.28迁移和集成测试已通过；整体仍为开发中，外部地图与设备定位待验证。
+负责人A。A1基础档案已接通；A2.1交付审批策略、内容校验和页面，实际保存/审批回写尚未接入。本机MySQL8.0.28已验证；外部地图与设备定位待验证。
 
 ## 通用约定与权限
 
@@ -52,7 +52,36 @@ ADMIN维护全局；HR只查询本公司，维护本公司部门/场所及普通
 1. 合并V2后再引入V3；保留V1。使用 `EmployeeService.get(Authentication,userId)` 获取经过范围检查的EmployeeView，或list查询分页范围。Authentication来自服务端上下文，不接受客户端指定调用者。
 2. `DataScope.companyFilter(Authentication,requestedCompanyId)`用于公司过滤，manager/admin检查管理职责。具体员工使用EmployeeService，避免把客户端声明的companyId当成员工真实归属。
 3. B使用 `WorkplaceService.activeForEmployee(Authentication,userId)`，按员工真实公司返回有效绑定，最多100个（绑定写入上限）。C展示历史可查询完整绑定。B计算距离前必须统一coordinateSystem。
-4. 当前未实现考勤、审批、统计与AI业务，也不生成考勤记录。A2在V3和B的考勤调整服务公布后使用V4推进。
+4. A2.1仅提供无副作用的申请校验；真实保存、审批、统计和考勤回写尚未接入，不生成假业务数据。实际V4将在V3与B调整服务评审后推进。
+
+## A2.1审批准备（2026-10-27）
+
+本阶段不激活V4、不创建假申请。B仍无完整V3/真实排班和按申请ID幂等调整服务，快照及整合选择见[冲突与依赖检查](../team/integration-2026-10-27.md)。
+
+| 方法 | 路径 | 当前实际行为 |
+| --- | --- | --- |
+| GET | `/api/approvals/status` | 已登录可用；available=false、validationAvailable=true、phase=POLICY_ONLY、Asia/Shanghai及依赖状态/blockers |
+| POST | `/api/approvals/preview` | 已登录并需CSRF；从认证上下文取得本人身份，校验内容；不保存、不调整考勤 |
+| POST | `/api/approvals` | 登录/CSRF通过后503 SERVICE_UNAVAILABLE，不返回假ID或保存成功 |
+| GET | `/api/approvals/me` | page/size按公共约定检查后503，不返回伪空列表 |
+| GET | `/api/approvals/inbox` | ADMIN/HR当前503；EMPLOYEE为403 |
+
+Draft：type为LEAVE/MISSING_PUNCH/OVERTIME；startAt/endAt为北京时间本地日期时间，不传时区/纳秒；reason去首尾空白、1～500字。请假/加班范围1分钟～31天，结束须晚于开始，punchType/workplaceId必须空。补卡仅填startAt，endAt为空；punchType为IN/OUT，workplaceId为本人当前有效绑定。本人须有启用公司；不采信输入中的用户/公司身份声明。
+
+Preview返回 `applicantId,applicantName,companyId,departmentId,draft,requestedMinutes,validated=true,stored=false,attendanceAdjusted=false`。requestedMinutes是自然时段向上取整分钟数，补卡为0，不是有效工时。当前不查询历史申请冲突、不验证真实排班，校验通过不意味着可以获批。
+
+独立Java策略ApprovalRules已实现：
+
+- PENDING仅可转APPROVED/REJECTED/WITHDRAWN；三者均为终态，不允许重复处理或撤回已生效申请。
+- 本人只撤回自己待审批申请；ADMIN/同公司HR可处理他人申请，任何角色不能自审；拒绝必填原因。
+- 待审批/通过的请假和加班时段相交冲突，相邻不冲突；拒绝/撤回不占时段。补卡同时间/方向/场所重复冲突；跨班次重复等仍需B进一步核对。
+- expectedVersion须匹配；输出不可变的新状态及审计转换，原始申请不变。这是策略前置检查，真实存储仍须CAS与事务，不能宣称已完成并发审批。
+
+候选V4在 `docs/modules/a-pending-migrations/V4__approval.sql`，不在Flyway位置，仅在隔离H2执行表结构/约束检查，Flyway历史不登记4。不得在现有MySQL库直接运行或启用out-of-order。候选request_key唯一约束供后续幂等提交使用，不代表当前已有幂等保存。
+
+ApprovalAttendancePort是A/B待确认的候选SPI，当前无B实现。后续需重新校验当前身份/公司、真实班次/冲突，以approvalId幂等调整，并将申请版本、审计和B调整放在同一事务，失败整体回滚。反向调整接口未定义，因此暂不开放通过后撤销。C当前只能用status了解能力；AI不能把preview当作提交成功。
+
+前端modules/approval/routes.js提供本人申请、管理审批两个入口，权限为approvals:read、approvals:manage；后台同时校验管理角色。申请内容可校验，提交禁用，列表/历史明确未接入，不显示伪0条。此阶段不等于完整审批流交付。
 
 ## 个人头像
 
