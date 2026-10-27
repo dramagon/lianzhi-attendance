@@ -56,12 +56,16 @@ onMounted(load)
           <p>{{ module.description }}</p>
         </div>
         <span class="tag" :class="module.status === 'COMPLETED' ? 'tag-green' : 'tag-neutral'">{{
-          module.status === 'COMPLETED' ? '已完成' : '待开发'
+          module.status === 'COMPLETED'
+            ? '已完成'
+            : module.status === 'IN_PROGRESS'
+              ? '开发中'
+              : '待开发'
         }}</span>
       </article>
     </div>
     <p class="roadmap-footnote">
-      <Right />下一步：建立公司、部门、员工和办公场所之间的关联。
+      <Right />当前：基础档案已接通，继续验证真实MySQL与地图服务，再对接考勤和审批。
     </p></template
   >
 </template>

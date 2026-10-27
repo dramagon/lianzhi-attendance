@@ -14,6 +14,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 const overview = ref(null)
@@ -120,7 +121,7 @@ onMounted(load)
           <RouterLink to="/profile" class="text-link">查看详情<ArrowRight /></RouterLink>
         </div>
         <div class="identity-summary">
-          <span class="avatar avatar-large">{{ auth.user.displayName.slice(-2) }}</span>
+          <UserAvatar :user="auth.user" size="large" />
           <div>
             <h3>{{ auth.user.displayName }}</h3>
             <span class="tag tag-blue">{{ auth.user.roleName }}</span>
@@ -153,6 +154,13 @@ onMounted(load)
           <div>
             <b>系统账号</b>
             <p>查看账号与角色分配</p>
+          </div>
+          <ArrowRight /></RouterLink
+        ><RouterLink v-if="auth.can('organization:manage')" to="/organization"
+          ><span class="quick-icon blue"><Location /></span>
+          <div>
+            <b>组织与场所</b>
+            <p>维护员工与办公地点</p>
           </div>
           <ArrowRight /></RouterLink
         ><RouterLink to="/profile"
@@ -190,7 +198,7 @@ onMounted(load)
           <h3>{{ item.name }}</h3>
           <p>{{ item.description }}</p>
         </div>
-        <span>待开发</span>
+        <span>{{ item.name === '组织与场所' ? '基础已接通' : '待开发' }}</span>
       </article>
     </div>
   </template>

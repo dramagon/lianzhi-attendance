@@ -25,5 +25,7 @@ server:
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
+    local-cache-scope: statement
 lianzhi:
   demo: false
+  avatar-directory: ${AVATAR_DIRECTORY:./data/avatars}

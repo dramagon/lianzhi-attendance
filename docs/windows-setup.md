@@ -23,7 +23,42 @@
 
 ## MySQL 模式
 
-推荐 MySQL 8.4，数据库名 `lianzhi`。先以有管理权限的数据库账号执行下面的 SQL，并替换密码占位内容：
+项目支持MySQL8；本机已使用MySQL8.0.28实际验证，数据库名 `lianzhi`。下面提供本机脚本与手动配置两种方式。
+
+### 本机脚本（已验证Windows PowerShell 5.1）
+
+在项目下创建 `artifacts/mysql-credentials.local.ps1`，仅填写本机MySQL管理账号，不提交Git：
+
+```powershell
+$env:LIANZHI_MYSQL_ADMIN_USER = 'root'
+$env:LIANZHI_MYSQL_ADMIN_PASSWORD = '填写已有管理账号密码'
+```
+
+先只读检查，再初始化并启动：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-mysql.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-mysql.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-mysql-backend.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
+```
+
+`setup-mysql.ps1`默认使用 `D:\MySQL\MySQL Server 8.0\bin\mysql.exe`，其他机器通过 `-MysqlPath` 指定。管理凭据也可通过当前进程环境变量提供，或使用 `-CredentialFile` 指定本机文件。脚本检查已有库：有表但不符合项目结构时停止；不删除表、不重设已有账号密码。新建账号仅授权 `lianzhi.*`，不授予全局权限；已有专用账号无本机配置时停止，需提供原密码。脚本复跑保留已有密码与数据。
+
+应用数据库随机密码、`admin`初始密码和JDBC地址保存在 `artifacts/mysql-app.local.ps1`，不打印密码。`start-mysql-backend.ps1`显式启用mysql配置并拒绝错误JDK版本、清除残留H2/验证库数据源覆盖。非演示模式不会创建hr/employee，首次登录使用admin及该本机文件中的ADMIN_INITIAL_PASSWORD。已有管理员不会被重新生成或重设密码。
+
+独立MySQL验证库（含明确的测试演示资料，不作为正式业务库）：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-mysql.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
+```
+
+测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API集成使用真实MySQL；审批纯策略不连接数据库，隔离迁移/并发及候选DDL夹具使用H2，分类结果见验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+
+A2候选V4仅位于docs，不随启动自动迁移。B的V3及调整服务尚未接通时，申请校验可用，但创建/查询申请返回503；不能把候选SQL复制到真实库以绕过未完成的业务接入。
+
+### 手动配置
+
+以有管理权限的数据库账号执行下面的 SQL，并替换密码占位内容：
 
 ```sql
 CREATE DATABASE lianzhi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -37,11 +72,11 @@ GRANT ALL PRIVILEGES ON lianzhi.* TO 'lianzhi'@'localhost';
 $env:SPRING_PROFILES_ACTIVE = 'mysql'
 $env:DB_USERNAME = 'lianzhi'
 $env:DB_PASSWORD = '替换为你自己的数据库密码'
-$env:ADMIN_INITIAL_PASSWORD = '替换为至少12位的初始管理员密码'
+$env:ADMIN_INITIAL_PASSWORD = '替换为至少4位的初始管理员密码'
 powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 ```
 
-首次启动会自动执行 Flyway 迁移，并创建 `admin` 账号。后续数据库已有账号时，不会再次创建或覆盖账号，修改环境变量也不会重置已有密码。MySQL 模式不创建 `hr` 和 `employee` 演示账号，新增员工将在第二阶段实现。
+首次启动会自动执行 Flyway 迁移，并创建 `admin` 账号。后续数据库已有账号时，不会再次创建或覆盖账号，修改环境变量也不会重置已有密码。MySQL 模式不创建演示账号；ADMIN登录后通过“组织与场所”建立公司、部门、场所，再创建员工和分配HR。
 
 默认连接本机 3306。如需其他数据库地址，使用 `DB_URL` 环境变量。数据库密码、初始管理员密码放在本机环境变量中，切勿写入仓库。
 
@@ -64,4 +99,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 | 登录后刷新跳回登录 | 是否混用了 localhost 和 127.0.0.1；请统一使用 README 地址 |
 | MySQL 启动报错 | 数据库是否建立、环境变量、账号权限和 3306 端口 |
 
-本轮实际验证环境为 Linux + Java 17 + Chromium；Windows 脚本和本机 MySQL 连接需要在 R9000P 上首次运行时确认。
+2026-10-26已在本机Windows运行后端、前端构建和浏览器测试。机器安装了JDK17，但JAVA_HOME原先指向JDK8；运行项目时需显式选择JDK17，无需改动其他项目的全局配置。Node24.12.0满足最低版本，团队仍推荐22LTS。MySQL80原本已运行，3306实际可连接；前次受限检查误判为未监听，已用原生客户端和系统端口检查纠正。本轮使用用户提供的本机凭据完成MySQL8.0.28的V1/V2迁移、非演示登录及独立库集成验证，未重启MySQL服务或更改root密码。
+
+本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。本轮Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
+
+旧V1库升级后账号/部门保留，company_id为空；由ADMIN明确建立公司、部门并调整员工归属，HR分配公司前无公司业务访问权。不要删除原库来绕过升级。浏览器完整验收建议使用另一个空演示库或独立内存库，避免验收账号进入原有数据。

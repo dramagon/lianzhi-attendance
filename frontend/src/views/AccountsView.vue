@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Search, Refresh, Lock } from '@element-plus/icons-vue'
 import http from '../api'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const accounts = ref([])
 const keyword = ref('')
@@ -36,12 +37,16 @@ onMounted(load)
     <div>
       <div class="eyebrow">系统管理</div>
       <h1>系统账号</h1>
-      <p>查看当前账号、角色与所属部门，掌握访问权限分配。</p>
+      <p>分配登录账号、设置角色，维护密码与启用状态。</p>
     </div>
-    <span class="tag tag-blue">管理员专属</span>
+    <RouterLink class="button button-primary" to="/organization?from=accounts&action=assign"
+      >分配账号</RouterLink
+    >
   </div>
   <div class="notice">
-    <Lock /><span>当前提供账号查询。新增员工、修改资料和停用账号将在员工管理模块开放。</span>
+    <Lock /><span
+      >管理员可分配员工、人事或管理员账号。账号与人员档案同步建立，创建后将登录账号和初始密码交给使用者。</span
+    >
   </div>
   <section class="panel">
     <div class="table-toolbar">
@@ -75,17 +80,18 @@ onMounted(load)
             <th>所属部门</th>
             <th>状态</th>
             <th>创建时间</th>
+            <th>账号管理</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="6" class="table-empty">正在加载账号…</td>
+            <td colspan="7" class="table-empty">正在加载账号…</td>
           </tr>
           <template v-else
             ><tr v-for="u in filtered" :key="u.id">
               <td>
                 <div class="table-user">
-                  <span class="avatar avatar-small">{{ u.displayName.slice(-2) }}</span>
+                  <UserAvatar :user="u" />
                   <div>
                     <b>{{ u.displayName }}</b
                     ><small>{{ u.username }}</small>
@@ -108,9 +114,19 @@ onMounted(load)
                 >{{ u.enabled ? '正常启用' : '已停用' }}
               </td>
               <td class="muted small-text">{{ u.createdAt?.replace('T', ' ').slice(0, 16) }}</td>
+              <td>
+                <RouterLink
+                  class="text-button"
+                  :to="{
+                    path: '/organization',
+                    query: { from: 'accounts', action: 'edit', userId: u.id },
+                  }"
+                  >管理账号</RouterLink
+                >
+              </td>
             </tr>
             <tr v-if="!filtered.length">
-              <td colspan="6" class="table-empty">没有找到符合条件的账号</td>
+              <td colspan="7" class="table-empty">没有找到符合条件的账号</td>
             </tr></template
           >
         </tbody>
