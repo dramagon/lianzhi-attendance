@@ -6,6 +6,7 @@ export async function attendancePost(path, data) {
 }
 export const statusLabels = {
   NORMAL: '正常出勤',
+  ON_LEAVE: '请假',
   LATE: '迟到',
   EARLY: '早退',
   LATE_AND_EARLY: '迟到且早退',

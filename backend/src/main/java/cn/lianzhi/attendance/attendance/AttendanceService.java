@@ -41,6 +41,7 @@ public class AttendanceService {
         return directory;
     }
     public List<AttendanceDirectory.Workplace> workplaces(long userId) { return required().workplaces(userId); }
+    public List<AttendanceDirectory.Workplace> managedWorkplaces(long userId) { return required().managedWorkplaces(userId); }
     public QrTokens.Issued issue(long managerId, long workplaceId) {
         required().requireManager(managerId, workplaceId);
         return tokens.issue(workplaceId);
@@ -73,7 +74,11 @@ public class AttendanceService {
         List<AttendanceStore.Event> events = store.day(userId, assignment.businessDate());
         if (events.stream().anyMatch(e -> e.type().equals(request.type)))
             throw new AttendanceProblem("DUPLICATE_PUNCH", "本班次已完成该类型打卡，请勿重复提交", org.springframework.http.HttpStatus.CONFLICT);
-        if ("OUT".equals(request.type) && events.stream().noneMatch(e -> e.type().equals("IN")))
+        var adjustedIn=directory.adjustedPunch(userId,assignment.businessDate(),"IN");
+        var adjustedSame=directory.adjustedPunch(userId,assignment.businessDate(),request.type);
+        if(adjustedSame!=null)throw new AttendanceProblem("DUPLICATE_PUNCH","该方向已通过补卡完成，请刷新日记录",org.springframework.http.HttpStatus.CONFLICT);
+        if(adjustedIn!=null && !now.isAfter(adjustedIn))throw new IllegalArgumentException("签退须晚于已审批的签到时间");
+        if ("OUT".equals(request.type) && adjustedIn==null && events.stream().noneMatch(e -> e.type().equals("IN")))
             throw new IllegalArgumentException("请先完成本班次上班打卡");
         if (events.stream().anyMatch(e -> !clock.instant().isAfter(e.occurredAt()))) throw new IllegalArgumentException("签退时间须晚于签到");
         return EventView.from(store.append(userId, qr.workplaceId(), assignment.businessDate(), request.type, clock.instant(), request.requestId, qr.nonce(), distance));

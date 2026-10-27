@@ -13,6 +13,8 @@ import {
   VideoCamera,
 } from '@element-plus/icons-vue'
 import http from '../../api'
+import QrScanner from './QrScanner.vue'
+import QrChallenge from './QrChallenge.vue'
 import { useAuthStore } from '../../stores/auth'
 import { attendancePost, businessDate, statusLabels, timeText } from './api'
 
@@ -26,6 +28,7 @@ const capability = ref(null),
   feedback = ref('')
 const now = ref(new Date()),
   workplaces = ref([]),
+  managedPlaces = ref([]),
   workplaceId = ref(''),
   token = ref(''),
   punchType = ref('IN')
@@ -151,7 +154,8 @@ async function load() {
     face.value = faceStatus
     if (status.available) {
       workplaces.value = await http.get('/attendance/me/workplaces')
-      workplaceId.value = workplaces.value[0]?.id || ''
+      if (canManage.value) managedPlaces.value = await http.get('/attendance/managed/workplaces')
+      workplaceId.value = managedPlaces.value[0]?.id || ''
       if (view.value === 'records') await loadRecords()
     }
   } catch (e) {
@@ -395,6 +399,12 @@ onUnmounted(() => {
       </div>
       <span class="tag tag-blue">{{ auth.user?.roleName }}工作空间</span>
     </div>
+    <RouterLink
+      class="button button-secondary"
+      style="margin-bottom: 16px"
+      to="/attendance/schedules"
+      >正式排班与日考勤</RouterLink
+    >
     <nav class="b-tabs" aria-label="考勤导航">
       <RouterLink
         v-for="tab in tabs"
@@ -436,7 +446,11 @@ onUnmounted(() => {
           <div class="b-place">
             <Location />
             <div>
-              <b>{{ available ? '请先获取定位并扫描场所挑战' : '尚未绑定可用办公场所' }}</b>
+              <b>{{
+                available
+                  ? workplaces[0]?.name || '请联系管理员绑定有效WGS84场所'
+                  : '尚未绑定可用办公场所'
+              }}</b>
               <p>
                 {{
                   available
@@ -448,7 +462,7 @@ onUnmounted(() => {
           </div>
           <label class="b-field"
             ><span>打卡类型</span
-            ><select v-model="punchType" :disabled="!available || punching">
+            ><select aria-label="打卡类型" v-model="punchType" :disabled="!available || punching">
               <option value="IN">上班签到</option>
               <option value="OUT">下班签退</option>
             </select></label
@@ -463,6 +477,7 @@ onUnmounted(() => {
               rows="3"
             />
           </label>
+          <QrScanner v-if="available" @scanned="token = $event" />
           <button class="b-punch-button" :disabled="!canPunch" @click="punch">
             <Clock />{{ punching ? '正在提交…' : available ? '确认打卡' : '等待业务接入' }}
           </button>
@@ -521,13 +536,13 @@ onUnmounted(() => {
           <section v-if="canManage" class="b-card">
             <h2>场所挑战管理</h2>
             <p class="b-description">
-              仅授权管理人员可生成。服务端再次校验公司与场所范围；当前提供令牌，扫码呈现尚待接入。
+              仅授权管理人员可生成。服务端再次校验公司与场所范围；可展示短时二维码供员工扫码。
             </p>
             <label class="b-field"
               ><span>授权场所</span
-              ><select v-model="workplaceId" :disabled="!available">
+              ><select aria-label="授权场所" v-model="workplaceId" :disabled="!available">
                 <option value="">{{ available ? '请选择场所' : '等待场所接口接入' }}</option>
-                <option v-for="p in workplaces" :key="p.id" :value="p.id">{{ p.name }}</option>
+                <option v-for="p in managedPlaces" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select></label
             ><button
               class="button button-secondary b-full"
@@ -537,6 +552,7 @@ onUnmounted(() => {
               <Refresh />生成短时挑战
             </button>
             <div v-if="challenge" class="b-location-result">
+              <QrChallenge :token="challenge.token" :expires-at="challenge.expiresAt" />
               <p>到期时间 {{ timeFormat(challenge.expiresAt) }}</p>
               <textarea readonly :value="challenge.token" aria-label="场所挑战令牌" /><button
                 class="text-button"

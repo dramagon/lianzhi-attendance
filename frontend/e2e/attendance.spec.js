@@ -11,14 +11,13 @@ async function employeeLogin(page) {
   await entry.click()
 }
 
-test('考勤入口可用，依赖缺失时不伪造打卡或记录', async ({ page }) => {
+test('考勤服务已接通，缺少定位或令牌时不能提交，记录来自真实查询', async ({ page }) => {
   await employeeLogin(page)
-  await expect(page.getByText('规则试算已可用，真实打卡等待业务接入')).toBeVisible()
-  await expect(page.getByRole('button', { name: '等待业务接入' })).toBeDisabled()
+  await expect(page.getByText('服务可用', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '确认打卡', exact: true })).toBeDisabled()
   await page.getByRole('link', { name: '考勤记录', exact: true }).click()
-  await expect(page.getByRole('heading', { name: '考勤存储尚未接入' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '查询记录', exact: true })).toBeDisabled()
-  await expect(page.locator('tbody tr')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '查询记录', exact: true })).toBeEnabled()
+  await expect(page.getByText('考勤存储尚未接入', { exact: true })).toHaveCount(0)
 })
 
 test('试算使用后端真实结果，覆盖正常、迟到、缺卡、跨天和休息日', async ({ page }) => {

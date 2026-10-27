@@ -9,7 +9,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.bind.MissingServletRequestParameterException;
 
 /** Advice is scoped to B only: existing authentication/error contracts stay intact. */
-@RestControllerAdvice(assignableTypes = {AttendanceController.class, FaceController.class})
+@org.springframework.core.annotation.Order(-1)
+@RestControllerAdvice(assignableTypes = {AttendanceController.class, AttendancePlanningController.class, FaceController.class})
 public class AttendanceErrors {
     @ExceptionHandler(AttendanceProblem.class)
     ResponseEntity<ApiResponse<Void>> problem(AttendanceProblem e) {

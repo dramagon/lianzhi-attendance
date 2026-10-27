@@ -15,7 +15,7 @@ public final class GeoFence {
         return 6371008.8 * 2 * Math.asin(Math.sqrt(Math.min(1, h)));
     }
     public static double check(Point location, Point workplace, double accuracy, int radius) {
-        if (!Double.isFinite(accuracy) || accuracy <= 0 || radius < 1 || radius > 5000) throw new IllegalArgumentException("定位精度或场所半径无效");
+        if (!Double.isFinite(accuracy) || accuracy <= 0 || radius < 1 || radius > 10000) throw new IllegalArgumentException("定位精度或场所半径无效");
         if (accuracy > Math.min(radius, 100)) throw new IllegalArgumentException("定位精度不足，请到开阔处重新定位");
         double distance = distance(location, workplace);
         if (distance > radius) throw new IllegalArgumentException("当前位置超出允许打卡范围");

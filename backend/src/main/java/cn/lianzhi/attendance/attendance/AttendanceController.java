@@ -23,6 +23,9 @@ public class AttendanceController {
     }
     @GetMapping("/me/workplaces")
     public ApiResponse<List<AttendanceDirectory.Workplace>> workplaces(Principal p) { return ApiResponse.ok(attendance.workplaces(user(p))); }
+    @GetMapping("/managed/workplaces")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
+    public ApiResponse<List<AttendanceDirectory.Workplace>> managedWorkplaces(Principal p) { return ApiResponse.ok(attendance.managedWorkplaces(user(p))); }
     @PostMapping("/workplaces/{workplaceId}/challenge")
     @PreAuthorize("hasAnyRole('ADMIN','HR')")
     public ApiResponse<QrTokens.Issued> challenge(Principal p, @PathVariable long workplaceId) { return ApiResponse.ok(attendance.issue(user(p), workplaceId)); }

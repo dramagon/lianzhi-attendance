@@ -1,5 +1,10 @@
 export default [
   {
+    path: 'attendance/schedules',
+    component: () => import('./ScheduleView.vue'),
+    meta: { title: '排班与日考勤' },
+  },
+  {
     path: 'attendance',
     component: () => import('./AttendancePage.vue'),
     meta: { title: '今日打卡', attendanceView: 'today' },

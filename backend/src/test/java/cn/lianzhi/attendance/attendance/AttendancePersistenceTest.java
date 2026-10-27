@@ -22,7 +22,8 @@ class AttendancePersistenceTest {
         var ds=new DriverManagerDataSource("jdbc:h2:mem:b-"+UUID.randomUUID()+";MODE=MySQL;DB_CLOSE_DELAY=-1","sa","");
         jdbc=new JdbcTemplate(ds);jdbc.execute("CREATE TABLE sys_user(id BIGINT PRIMARY KEY, enabled BOOLEAN NOT NULL)");
         jdbc.update("INSERT INTO sys_user VALUES(1,TRUE),(2,TRUE)");
-        new ResourceDatabasePopulator(new FileSystemResource("../docs/modules/b-pending-migrations/V3__attendance.sql")).execute(ds);
+        jdbc.execute("CREATE TABLE workplace(id BIGINT PRIMARY KEY)");jdbc.update("INSERT INTO workplace VALUES(8)");
+        new ResourceDatabasePopulator(new org.springframework.core.io.ClassPathResource("db/migration/V3__attendance.sql")).execute(ds);
         store=new AttendanceStore(jdbc);tx=new TransactionTemplate(new DataSourceTransactionManager(ds));tokens=new QrTokens(new byte[32],Clock.fixed(now,ZoneOffset.UTC));
         directory=new AttendanceDirectory(){
             public List<Workplace> workplaces(long user){return List.of(new Workplace(8,"测试场所",new GeoFence.Point(0,0,"WGS84"),200,false));}
