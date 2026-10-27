@@ -29,7 +29,7 @@ public class AttendanceSchedules {
             (rs,n)->new Schedule(rs.getLong("user_id"),rs.getDate("business_date").toLocalDate(),rs.getLong("workplace_id"),decode(rs.getString("rule_json")),rs.getBoolean("holiday")),user,from,to);
     }
     public Schedule get(long user,LocalDate date) {return list(user,date,date).stream().findFirst().orElseThrow(()->new IllegalArgumentException("该日期尚未安排班次"));}
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void save(Authentication actor,Schedule schedule) {
         scope.manager(actor);
         if(schedule==null || schedule.businessDate()==null || schedule.rule()==null)throw new IllegalArgumentException("请填写员工、业务日期和班次");

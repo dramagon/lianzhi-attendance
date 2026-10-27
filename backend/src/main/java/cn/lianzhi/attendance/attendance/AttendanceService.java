@@ -46,7 +46,7 @@ public class AttendanceService {
         required().requireManager(managerId, workplaceId);
         return tokens.issue(workplaceId);
     }
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public EventView punch(long userId, Punch request) {
         AttendanceDirectory directory = required();
         if (request == null || !Set.of("IN", "OUT").contains(Objects.toString(request.type, ""))) throw new IllegalArgumentException("请选择上班或下班打卡");

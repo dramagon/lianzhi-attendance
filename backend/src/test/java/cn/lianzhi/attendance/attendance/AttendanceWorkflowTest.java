@@ -17,7 +17,7 @@ import java.time.*;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest(properties="spring.datasource.url=jdbc:h2:mem:b-workflow;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties="spring.datasource.url=${LIANZHI_ATTENDANCE_TEST_URL:jdbc:h2:mem:b-workflow;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}")
 @ActiveProfiles("test")
 @Transactional
 @WithMockUser(username="employee",roles="EMPLOYEE")
@@ -29,6 +29,11 @@ class AttendanceWorkflowTest {
     MutableClock clock; QrTokens tokens; AttendanceService service;
     static class MutableClock extends Clock { Instant value; MutableClock(Instant v){value=v;} public ZoneId getZone(){return ZoneOffset.UTC;}public Clock withZone(ZoneId zone){return this;}public Instant instant(){return value;} }
     @BeforeEach void prepare(){
+        if (System.getenv("LIANZHI_ATTENDANCE_TEST_URL") != null) {
+            try (var connection = jdbc.getDataSource().getConnection()) {
+                assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("MySQL");
+            } catch (java.sql.SQLException e) { throw new IllegalStateException(e); }
+        }
         user=jdbc.queryForObject("SELECT id FROM sys_user WHERE username='employee'",Long.class);
         admin=jdbc.queryForObject("SELECT id FROM sys_user WHERE username='admin'",Long.class);
         company=jdbc.queryForObject("SELECT company_id FROM sys_user WHERE id=?",Long.class,user);

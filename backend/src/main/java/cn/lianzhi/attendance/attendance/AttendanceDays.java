@@ -53,7 +53,7 @@ public class AttendanceDays implements ApprovalAttendancePort {
             }else if(d.endAt()!=null && draft.endAt()!=null && d.startAt().isBefore(draft.endAt()) && draft.startAt().isBefore(d.endAt()))throw new IllegalArgumentException("审批调整时段存在重叠");
         }
     }
-    @Transactional
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void apply(Authentication actor,Adjustment a){
         // Locks the same account as punch/scheduling so adjustment validation and append are atomic.
         if(a==null)throw new IllegalArgumentException("缺少审批调整");

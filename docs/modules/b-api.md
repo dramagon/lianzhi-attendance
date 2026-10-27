@@ -81,3 +81,7 @@ B已实现A定义的`ApprovalAttendancePort`，`available()`表示V3可用。`va
 后端`sh ./mvnw verify`；前端`npm ci`、`npm run format`、`npm run build`，启动独立演示库后`npm run test:e2e`。云环境外部Playwright配置选择系统Chromium，开发机按README安装Playwright Chromium。
 
 浏览器联调使用隔离临时H2，不修改用户已有数据，定位使用浏览器仿真；二维码图片由真实签名令牌生成并使用jsQR真实解码，没有用假的“识别成功”替代。具体结果见交接记录。
+
+### MySQL后续验证
+
+MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检查已通过；见[验证记录](../verification/member-b-mysql-2026-10-27.md)。写事务显式READ_COMMITTED，日查询仍为REPEATABLE_READ。A若提供外层审批事务，必须同时明确READ_COMMITTED，内部REQUIRED注解不能改变调用方隔离级别。
