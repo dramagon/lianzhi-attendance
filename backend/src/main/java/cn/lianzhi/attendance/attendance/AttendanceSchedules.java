@@ -54,7 +54,7 @@ public class AttendanceSchedules {
     }
     public Schedule current(long user,Instant instant) {
         LocalDateTime now=LocalDateTime.ofInstant(instant,AttendanceRules.ZONE);
-        return list(user,now.toLocalDate().minusDays(1),now.toLocalDate()).stream()
+        return list(user,now.toLocalDate().minusDays(1),now.toLocalDate().plusDays(1)).stream()
             .filter(s->!now.isBefore(s.businessDate().atTime(s.rule().start()).minusHours(4)) && !now.isAfter(AttendanceRules.finish(s.businessDate(),s.rule().start(),s.rule().end()).plusHours(4)))
             .min(Comparator.comparingLong(s->{var start=s.businessDate().atTime(s.rule().start());var end=AttendanceRules.finish(s.businessDate(),s.rule().start(),s.rule().end());return now.isBefore(start)?Duration.between(now,start).getSeconds():now.isAfter(end)?Duration.between(end,now).getSeconds():0L;}))
             .orElseThrow(()->AttendanceProblem.unavailable("当前没有可打卡的正式班次，请联系管理员排班"));

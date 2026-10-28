@@ -1,5 +1,10 @@
 export default [
   {
+    path: 'attendance/device',
+    component: () => import('./DeviceCheck.vue'),
+    meta: { title: '设备检查' },
+  },
+  {
     path: 'attendance/schedules',
     component: () => import('./ScheduleView.vue'),
     meta: { title: '排班与日考勤' },

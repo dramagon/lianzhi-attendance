@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import http from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { attendancePost, businessDate, statusLabels } from './api'
@@ -11,7 +11,6 @@ const employees = ref([]),
   days = ref([]),
   error = ref(''),
   message = ref(''),
-  busy = ref(false),
   query = ref('')
 const date = businessDate(),
   filter = reactive({ from: date, to: date }),
@@ -28,50 +27,89 @@ const date = businessDate(),
     workdays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
   })
 const week = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+let disposed = false,
+  peopleRevision = 0,
+  placesRevision = 0,
+  recordsRevision = 0
+const peopleBusy = ref(false),
+  placesBusy = ref(false),
+  recordsBusy = ref(false),
+  saving = ref(false)
+const pending = computed(
+  () => peopleBusy.value || placesBusy.value || recordsBusy.value || saving.value,
+)
+function invalidateRecords() {
+  recordsRevision++
+  recordsBusy.value = false
+  schedules.value = []
+  days.value = []
+}
 async function people() {
+  const revision = ++peopleRevision
+  peopleBusy.value = true
+  error.value = ''
   try {
-    employees.value = (
-      await http.get('/employees', { params: { query: query.value, page: 1, size: 100 } })
-    ).items
+    const data = await http.get('/employees', {
+      params: { query: query.value, page: 1, size: 100 },
+    })
+    if (!disposed && revision === peopleRevision) employees.value = data.items
   } catch (e) {
-    error.value = e.message
+    if (!disposed && revision === peopleRevision) error.value = e.message
+  } finally {
+    if (!disposed && revision === peopleRevision) peopleBusy.value = false
   }
 }
 async function employeeChanged() {
+  const revision = ++placesRevision,
+    userId = form.userId
   error.value = ''
+  message.value = ''
   places.value = []
   form.workplaceId = ''
+  invalidateRecords()
+  placesBusy.value = true
   try {
-    places.value = (await http.get(`/employees/${form.userId}/workplaces`)).filter(
-      (p) => p.enabled && p.coordinateSystem === 'WGS84',
-    )
+    const data = await http.get(`/employees/${userId}/workplaces`)
+    if (disposed || revision !== placesRevision || userId !== form.userId) return
+    places.value = data.filter((p) => p.enabled && p.coordinateSystem === 'WGS84')
     form.workplaceId = places.value[0]?.id || ''
     await load()
   } catch (e) {
-    error.value = e.message
+    if (!disposed && revision === placesRevision) error.value = e.message
+  } finally {
+    if (!disposed && revision === placesRevision) placesBusy.value = false
   }
 }
 async function load() {
-  busy.value = true
+  const revision = ++recordsRevision
+  const params = { ...filter, ...(manager.value ? { userId: form.userId } : {}) }
+  recordsBusy.value = true
   error.value = ''
+  schedules.value = []
+  days.value = []
   try {
-    const params = { ...filter, ...(manager.value ? { userId: form.userId } : {}) }
+    if (!params.from || !params.to || params.to < params.from)
+      throw new Error('请选择有效的开始与结束日期')
     const [s, d] = await Promise.all([
       http.get(manager.value ? '/attendance/schedules' : '/attendance/me/schedules', { params }),
       http.get(manager.value ? '/attendance/days' : '/attendance/me/days', { params }),
     ])
-    schedules.value = s
-    days.value = d
+    if (!disposed && revision === recordsRevision) {
+      schedules.value = s
+      days.value = d
+    }
   } catch (e) {
-    error.value = e.message
+    if (!disposed && revision === recordsRevision) error.value = e.message
   } finally {
-    busy.value = false
+    if (!disposed && revision === recordsRevision) recordsBusy.value = false
   }
 }
 async function save() {
-  busy.value = true
+  if (saving.value || placesBusy.value) return
+  saving.value = true
   error.value = ''
   message.value = ''
+  const employee = form.userId
   try {
     await attendancePost('/attendance/schedules', {
       userId: Number(form.userId),
@@ -84,22 +122,30 @@ async function save() {
         breakStart: form.breakStart || null,
         breakEnd: form.breakEnd || null,
         graceMinutes: Number(form.graceMinutes),
-        workdays: form.workdays,
+        workdays: [...form.workdays],
       },
     })
+    if (disposed || employee !== form.userId) return
     message.value = '正式排班已保存，可在所选日期与场所打卡。'
     await load()
   } catch (e) {
-    error.value = e.message
+    if (!disposed && employee === form.userId) error.value = e.message
   } finally {
-    busy.value = false
+    if (!disposed) saving.value = false
   }
 }
+watch(() => [filter.from, filter.to, form.userId], invalidateRecords, { flush: 'sync' })
 onMounted(async () => {
   if (manager.value) {
     await people()
-    await employeeChanged()
+    if (!disposed) await employeeChanged()
   } else await load()
+})
+onUnmounted(() => {
+  disposed = true
+  peopleRevision++
+  placesRevision++
+  recordsRevision++
 })
 </script>
 <template>
@@ -124,7 +170,12 @@ onMounted(async () => {
             placeholder="姓名、账号或工号"
           /><button type="button" class="text-button" @click="people">搜索</button></label
         ><label
-          >员工<select aria-label="员工" v-model="form.userId" @change="employeeChanged">
+          >员工<select
+            aria-label="员工"
+            v-model="form.userId"
+            :disabled="saving"
+            @change="employeeChanged"
+          >
             <option v-for="person in employees" :key="person.userId" :value="person.userId">
               {{ person.displayName }} · {{ person.employeeNo }}
             </option>
@@ -167,8 +218,8 @@ onMounted(async () => {
         </fieldset>
         <label class="check"><input v-model="form.holiday" type="checkbox" />本日期为休息日</label>
         <p>跨天班次归开始日；已有打卡的班次不可改写。可更新尚无事件的当日或未来排班。</p>
-        <button class="button button-primary" :disabled="busy || !form.workplaceId">
-          {{ busy ? '保存中…' : '保存正式排班' }}
+        <button class="button button-primary" :disabled="pending || !form.workplaceId">
+          {{ saving ? '保存中…' : '保存正式排班' }}
         </button>
       </form>
     </section>
@@ -177,9 +228,9 @@ onMounted(async () => {
       <form class="fields" @submit.prevent="load">
         <label>开始日期<input v-model="filter.from" type="date" required /></label
         ><label>结束日期<input v-model="filter.to" type="date" :min="filter.from" required /></label
-        ><button class="button button-secondary" :disabled="busy">查询</button>
+        ><button class="button button-secondary" :disabled="recordsBusy || saving">查询</button>
       </form>
-      <p v-if="busy" role="status">查询中…</p>
+      <p v-if="recordsBusy" role="status">查询中…</p>
       <p v-else-if="!schedules.length">所选范围没有正式排班，不推断为缺勤。</p>
       <div v-else class="scroll">
         <table>

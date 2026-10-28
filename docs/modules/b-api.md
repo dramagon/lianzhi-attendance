@@ -85,3 +85,9 @@ B已实现A定义的`ApprovalAttendancePort`，`available()`表示V3可用。`va
 ### MySQL后续验证
 
 MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检查已通过；见[验证记录](../verification/member-b-mysql-2026-10-27.md)。写事务显式READ_COMMITTED，日查询仍为REPEATABLE_READ。A若提供外层审批事务，必须同时明确READ_COMMITTED，内部REQUIRED注解不能改变调用方隔离级别。
+
+### 2026-10-28交互与手机准备更新
+
+班次候选查询覆盖昨天/今天/明天，凌晨班次支持前一晚进入提前4小时窗口。排班页按请求版本隔离旧响应；扫码支持取消等待、丢弃旧图片与旧授权结果，切页/切后台释放设备。
+
+新增认证路由`/attendance/device`检查当前设备环境，不提交打卡或人脸登记，不新增数据API。独立HTTPS验收工具见tools/mobile-acceptance/README.md；真机执行情况仍须单独填写验收表，不能以浏览器仿真代替。

@@ -120,3 +120,5 @@ docs/                    环境说明、接口约定、模块规划与验证记�
 首次启动会依次应用V1→V2→V3，请备份已有业务库，不要手动运行候选V4/V5或启用out-of-order。旧账号无公司归属时须由管理员设置；不自动补造场所或考勤。人脸SDK未接入，登记/验证保持关闭。接口和实际限制见[考勤说明](docs/modules/b-api.md)，跨成员事项见[B交接](docs/team/member-b-handoff-2026-10-27.md)。
 
 B模块独立MySQL验证（需Docker、Python3与JDK，无需宿主机安装MySQL）：`python scripts/test-attendance-mysql.py`。脚本使用独立容器和随机测试凭据，验证迁移、并发、审批回滚及数据库重启保留，只清理本次测试容器。详见[真实MySQL验证记录](docs/verification/member-b-mysql-2026-10-27.md)。
+
+手机验收准备：登录后进入「考勤工作台→手机设备检查」。独立HTTPS工具及证书/局域网说明见[手机验收工具](tools/mobile-acceptance/README.md)，真机结果填写[验收表](docs/team/member-b-mobile-checklist.md)。云端自检不等于真机已通过。

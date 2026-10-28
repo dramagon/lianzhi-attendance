@@ -52,3 +52,12 @@ B分支整合A审批前置分支4216eb8（包含A1组织5536220），仅合并�
 A真实审批外层事务请使用READ_COMMITTED和同一数据源；否则加入外层事务时，B内部隔离级别注解不能代替外层配置。请继续完成V4、真实申请状态CAS及审计与调整的联合事务，当前仍不能把preview当已提交。
 
 可复跑脚本：`python scripts/test-attendance-mysql.py`。精确结果与环境见[MySQL验证记录](../verification/member-b-mysql-2026-10-27.md)。因此前文“本轮未在真实MySQL执行”仅指上一交付批次；B在本次后续已完成上述MySQL实测，Windows/真机/SDK等边界仍未变。
+
+
+## 2026-10-28：交互修复与手机HTTPS准备
+
+B已修复凌晨班次前一晚窗口、排班页旧响应覆盖、扫码旧图片/旧授权结果回传；新增设备检查页面、隔离HTTPS验收启动工具及真机清单，未修改A/C代码或已发布迁移。
+
+默认后端102项、完整浏览器24项、MySQL26项业务和1项重启检查通过；可信TLS、Secure Cookie/CSRF和重复启动自检通过。精确记录见[本轮验证](../verification/member-b-mobile-2026-10-28.md)。
+
+A继续推进真实V4审批；C的生产部署仍由C负责，B工具只用于隔离验收。真实手机需在可访问的电脑上配置局域网IPv4、信任自己的公共CA，再填写[真机清单](member-b-mobile-checklist.md)。SDK授权/版本、真实手机、Windows和公网部署仍未验收；不将本次自动化结果当作这些项目完成。

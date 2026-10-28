@@ -405,6 +405,9 @@ onUnmounted(() => {
       to="/attendance/schedules"
       >正式排班与日考勤</RouterLink
     >
+    <RouterLink class="button button-secondary" style="margin: 0 0 16px 8px" to="/attendance/device"
+      >手机设备检查</RouterLink
+    >
     <nav class="b-tabs" aria-label="考勤导航">
       <RouterLink
         v-for="tab in tabs"

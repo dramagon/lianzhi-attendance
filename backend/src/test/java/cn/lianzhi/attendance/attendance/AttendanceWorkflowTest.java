@@ -101,4 +101,25 @@ class AttendanceWorkflowTest {
         var d=days.list(manager,user,date,date).get(0);assertThat(d.overtimeMinutes()).isEqualTo(120);assertThat(d.attendance().workMinutes()).isZero();assertThat(d.attendance().lateMinutes()).isZero();assertThat(d.attendance().status()).isEqualTo("REST_DAY");
     }
 
+    private void tomorrowShift() {
+        jdbc.update("DELETE FROM attendance_schedule WHERE user_id=?",user);
+        schedules.save(manager,new AttendanceSchedules.Schedule(user,date.plusDays(1),place,
+            new AttendanceRules.Rule(LocalTime.of(0,30),LocalTime.of(8,30),null,null,0,EnumSet.allOf(DayOfWeek.class)),false));
+    }
+    @Test void nextDayShiftIsAvailableInsidePreviousEveningWindow(){
+        tomorrowShift();
+        assertThat(schedules.current(user,date.atTime(23,30).atZone(AttendanceRules.ZONE).toInstant()).businessDate()).isEqualTo(date.plusDays(1));
+    }
+    @Test void nextDayShiftRespectsExactFourHourBoundary(){
+        tomorrowShift();
+        assertThat(schedules.current(user,date.atTime(20,30).atZone(AttendanceRules.ZONE).toInstant()).businessDate()).isEqualTo(date.plusDays(1));
+        assertThatThrownBy(()->schedules.current(user,date.atTime(20,29,59).atZone(AttendanceRules.ZONE).toInstant())).isInstanceOf(AttendanceProblem.class);
+    }
+    @Test void previousDaysOvernightShiftRemainsAvailableAfterMidnight(){
+        jdbc.update("DELETE FROM attendance_schedule WHERE user_id=?",user);
+        var rule=new AttendanceRules.Rule(LocalTime.of(22,0),LocalTime.of(6,0),null,null,0,EnumSet.allOf(DayOfWeek.class));
+        jdbc.update("INSERT INTO attendance_schedule(user_id,business_date,workplace_id,rule_json,holiday,created_by) VALUES(?,?,?,?,FALSE,?)",user,date.minusDays(1),place,schedules.encode(rule),admin);
+        assertThat(schedules.current(user,date.atTime(2,0).atZone(AttendanceRules.ZONE).toInstant()).businessDate()).isEqualTo(date.minusDays(1));
+    }
+
 }
