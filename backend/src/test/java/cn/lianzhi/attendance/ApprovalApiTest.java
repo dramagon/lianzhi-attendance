@@ -15,7 +15,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test") @Transactional
+@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test") @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
 class ApprovalApiTest {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
@@ -23,14 +23,15 @@ class ApprovalApiTest {
     Map<String,Object> draft() { return new HashMap<>(Map.of("type","LEAVE","startAt","2026-10-27T09:00:00","endAt","2026-10-27T18:00:00","reason","申请事由")); }
     @Test void statusIsHonestAndAnonymousCannotAccess() throws Exception {
         mvc.perform(get("/api/approvals/status")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/approvals/status").with(user("employee"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(false)).andExpect(jsonPath("$.data.validationAvailable").value(true)).andExpect(jsonPath("$.data.phase").value("POLICY_ONLY"));
+        mvc.perform(get("/api/approvals/status").with(user("employee"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.available").value(true)).andExpect(jsonPath("$.data.validationAvailable").value(true)).andExpect(jsonPath("$.data.phase").value("CONNECTED"));
     }
     @Test void previewUsesAuthenticatedIdentityAndHasNoPersistenceSideEffects() throws Exception {
         var input=draft(); input.put("userId",99999); input.put("companyId",99999);
         Long expected=jdbc.queryForObject("SELECT id FROM sys_user WHERE username='employee'",Long.class);
+        Long before=jdbc.queryForObject("SELECT COUNT(*) FROM approval_request WHERE applicant_id=?",Long.class,expected);
         mvc.perform(post("/api/approvals/preview").with(user("employee")).with(csrf()).contentType("application/json").content(json.writeValueAsString(input)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.applicantId").value(expected)).andExpect(jsonPath("$.data.validated").value(true)).andExpect(jsonPath("$.data.stored").value(false)).andExpect(jsonPath("$.data.attendanceAdjusted").value(false));
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='4'",Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM approval_request WHERE applicant_id=?",Long.class,expected)).isEqualTo(before);
     }
     @Test void previewRequiresCsrfAndRejectsBadInput() throws Exception {
         mvc.perform(post("/api/approvals/preview").with(user("employee")).contentType("application/json").content(json.writeValueAsString(draft()))).andExpect(status().isForbidden());
@@ -55,11 +56,12 @@ class ApprovalApiTest {
         jdbc.update("UPDATE org_company SET enabled=FALSE WHERE id=(SELECT company_id FROM sys_user WHERE username='employee')");
         mvc.perform(post("/api/approvals/preview").with(user("employee")).with(csrf()).contentType("application/json").content(json.writeValueAsString(draft()))).andExpect(status().isConflict());
     }
-    @Test void unavailableStorageNeverPretendsSuccessOrEmptyRecords() throws Exception {
-        mvc.perform(post("/api/approvals").with(user("employee")).with(csrf())).andExpect(status().isServiceUnavailable());
-        mvc.perform(get("/api/approvals/me").with(user("employee"))).andExpect(status().isServiceUnavailable());
+    @Test void realStorageRequiresValidInputAndManagerPermission() throws Exception {
+        long total=jdbc.queryForObject("SELECT COUNT(*) FROM approval_request WHERE applicant_id=(SELECT id FROM sys_user WHERE username='employee')",Long.class);
+        mvc.perform(post("/api/approvals").with(user("employee")).with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/approvals/me").with(user("employee"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(total));
         mvc.perform(get("/api/approvals/inbox").with(user("employee"))).andExpect(status().isForbidden());
-        mvc.perform(get("/api/approvals/inbox").with(user("hr").roles("HR"))).andExpect(status().isServiceUnavailable());
+        mvc.perform(get("/api/approvals/inbox").with(user("hr").roles("HR"))).andExpect(status().isOk());
         mvc.perform(get("/api/approvals/me").with(user("employee")).param("size","101")).andExpect(status().isBadRequest());
     }
 }

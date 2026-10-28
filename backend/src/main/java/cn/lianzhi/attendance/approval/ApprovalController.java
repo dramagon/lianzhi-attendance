@@ -15,10 +15,14 @@ public class ApprovalController {
     @PostMapping("/preview")
     public ApiResponse<?> preview(Authentication actor,@RequestBody ApprovalRules.Draft input) { return ApiResponse.ok(service.preview(actor,input)); }
     @PostMapping
-    public ApiResponse<?> create() { service.requireStorage(); return ApiResponse.ok(null); }
+    public ApiResponse<?> create(Authentication actor,@RequestBody ApprovalService.Submission input) { return ApiResponse.ok(service.create(actor,input)); }
     @GetMapping("/me")
-    public ApiResponse<?> mine(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size) { PageResult.validate(page,size); service.requireStorage(); return ApiResponse.ok(null); }
+    public ApiResponse<?> mine(Authentication actor,@RequestParam(defaultValue="ALL") String state,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size) { return ApiResponse.ok(service.list(actor,false,state,page,size)); }
     @GetMapping("/inbox")
     @PreAuthorize("hasAnyRole('ADMIN','HR')")
-    public ApiResponse<?> inbox(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size) { PageResult.validate(page,size); service.requireStorage(); return ApiResponse.ok(null); }
+    public ApiResponse<?> inbox(Authentication actor,@RequestParam(defaultValue="PENDING") String state,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size) { return ApiResponse.ok(service.list(actor,true,state,page,size)); }
+    @GetMapping("/{id}")
+    public ApiResponse<?> detail(Authentication actor,@PathVariable long id){return ApiResponse.ok(service.detail(actor,id));}
+    @PostMapping("/{id}/actions")
+    public ApiResponse<?> decide(Authentication actor,@PathVariable long id,@RequestBody ApprovalService.Decision input){return ApiResponse.ok(service.decide(actor,id,input));}
 }

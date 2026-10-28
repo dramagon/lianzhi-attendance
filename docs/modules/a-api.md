@@ -1,6 +1,6 @@
 # A模块接口记录
 
-负责人A。A1基础档案已接通；A2.1交付审批策略、内容校验和页面，实际保存/审批回写尚未接入。本机MySQL8.0.28已验证；外部地图与设备定位待验证。
+负责人A。A1基础档案已接通；A2.2已接通真实申请、审批审计与B考勤回写。本机MySQL8.0.28已验证；外部地图与设备定位待验证。
 
 ## 通用约定与权限
 
@@ -52,36 +52,41 @@ ADMIN维护全局；HR只查询本公司，维护本公司部门/场所及普通
 1. 合并V2后再引入V3；保留V1。使用 `EmployeeService.get(Authentication,userId)` 获取经过范围检查的EmployeeView，或list查询分页范围。Authentication来自服务端上下文，不接受客户端指定调用者。
 2. `DataScope.companyFilter(Authentication,requestedCompanyId)`用于公司过滤，manager/admin检查管理职责。具体员工使用EmployeeService，避免把客户端声明的companyId当成员工真实归属。
 3. B使用 `WorkplaceService.activeForEmployee(Authentication,userId)`，按员工真实公司返回有效绑定，最多100个（绑定写入上限）。C展示历史可查询完整绑定。B计算距离前必须统一coordinateSystem。
-4. A2.1仅提供无副作用的申请校验；真实保存、审批、统计和考勤回写尚未接入，不生成假业务数据。实际V4将在V3与B调整服务评审后推进。
+4. A2.2在B正式V3后使用V4保存真实申请、审批审计，并在同事务调用B调整服务；外部AI写请求必须先取得用户确认。
 
-## A2.1审批准备（2026-10-27）
+## A2.2真实申请与审批（2026-10-28）
 
-本阶段不激活V4、不创建假申请。B仍无完整V3/真实排班和按申请ID幂等调整服务，快照及整合选择见[冲突与依赖检查](../team/integration-2026-10-27.md)。
+已接入B `e3eafe6` 的正式V3、排班及ApprovalAttendancePort实现；新增正式Flyway V4，依次V1→V2→V3→V4→V4.1，不改已发布迁移，不启用out-of-order。旧的docs候选V4由正式迁移替代。V4.1把原始打卡时间扩为微秒，避免同秒事件落库后顺序丢失；不占用B的V5。部署前备份实际业务库。
 
-| 方法 | 路径 | 当前实际行为 |
+| 方法 | 路径 | 实际行为 |
 | --- | --- | --- |
-| GET | `/api/approvals/status` | 已登录可用；available=false、validationAvailable=true、phase=POLICY_ONLY、Asia/Shanghai及依赖状态/blockers |
-| POST | `/api/approvals/preview` | 已登录并需CSRF；从认证上下文取得本人身份，校验内容；不保存、不调整考勤 |
-| POST | `/api/approvals` | 登录/CSRF通过后503 SERVICE_UNAVAILABLE，不返回假ID或保存成功 |
-| GET | `/api/approvals/me` | page/size按公共约定检查后503，不返回伪空列表 |
-| GET | `/api/approvals/inbox` | ADMIN/HR当前503；EMPLOYEE为403 |
+| GET | `/api/approvals/status` | 已登录；依赖均就绪时available=true、phase=CONNECTED，否则available=false/DEPENDENCY_UNAVAILABLE；含Asia/Shanghai和blockers |
+| POST | `/api/approvals/preview` | 本人内容、启用公司及有效绑定检查；无副作用，不代表班次校验或已提交 |
+| POST | `/api/approvals` | `{requestKey,draft}`，本人真实保存并生成提交审计，requestKey须为标准小写UUID |
+| GET | `/api/approvals/me` | 本人分页，state默认ALL；items/total/page/size |
+| GET | `/api/approvals/inbox` | ADMIN/HR公司范围；state默认PENDING，PROCESSED返回已处理申请 |
+| GET | `/api/approvals/{id}` | 本人或授权管理者读取详情及审计 |
+| POST | `/api/approvals/{id}/actions` | `{action,expectedVersion,note}`，action为APPROVE/REJECT/WITHDRAW；真实事务处理 |
 
-Draft：type为LEAVE/MISSING_PUNCH/OVERTIME；startAt/endAt为北京时间本地日期时间，不传时区/纳秒；reason去首尾空白、1～500字。请假/加班范围1分钟～31天，结束须晚于开始，punchType/workplaceId必须空。补卡仅填startAt，endAt为空；punchType为IN/OUT，workplaceId为本人当前有效绑定。本人须有启用公司；不采信输入中的用户/公司身份声明。
+所有POST需CSRF。列表state支持ALL、PROCESSED、PENDING、APPROVED、REJECTED、WITHDRAWN；page/size沿用通用约定，过滤在数据库执行。错误沿用400/401/403/404/409，依赖不可用503，不能用空数组掩盖读取失败。
 
-Preview返回 `applicantId,applicantName,companyId,departmentId,draft,requestedMinutes,validated=true,stored=false,attendanceAdjusted=false`。requestedMinutes是自然时段向上取整分钟数，补卡为0，不是有效工时。当前不查询历史申请冲突、不验证真实排班，校验通过不意味着可以获批。
+Draft：`{type,startAt,endAt,punchType,workplaceId,reason}`；type为LEAVE/MISSING_PUNCH/OVERTIME。时间为北京时间本地日期时间，不带时区/纳秒，年份1000～9999；reason去首尾空白1～500字。请假/加班自然范围1分钟～31天，结束晚于开始，补卡字段须为空。补卡只填startAt，不晚于当前北京时间；endAt为空、punchType为IN/OUT、workplaceId须为本人有效绑定。申请人/公司/部门快照取服务器当前身份，不接受浏览器指定。
 
-独立Java策略ApprovalRules已实现：
+返回Entry为`{request,departmentId,requestKey,applicantName}`；request为`{id,applicantId,companyId,draft,state,version,createdAt}`，不含账号敏感字段。详情`{entry,history}`；history事件含申请ID、前后状态、actorId、服务端occurredAt、reason、version。提交事件版本0、PENDING→PENDING表示提交，处理事件版本1。数据库保存组织快照；姓名展示当前显示名。
 
-- PENDING仅可转APPROVED/REJECTED/WITHDRAWN；三者均为终态，不允许重复处理或撤回已生效申请。
-- 本人只撤回自己待审批申请；ADMIN/同公司HR可处理他人申请，任何角色不能自审；拒绝必填原因。
-- 待审批/通过的请假和加班时段相交冲突，相邻不冲突；拒绝/撤回不占时段。补卡同时间/方向/场所重复冲突；跨班次重复等仍需B进一步核对。
-- expectedVersion须匹配；输出不可变的新状态及审计转换，原始申请不变。这是策略前置检查，真实存储仍须CAS与事务，不能宣称已完成并发审批。
+Preview返回`applicantId,applicantName,companyId,departmentId,draft,requestedMinutes,validated=true,stored=false,attendanceAdjusted=false`。requestedMinutes是自然时段向上取整分钟数，补卡0；实际请假/加班分钟与工时必须复用B的日结果，不把预览分钟当有效工时。
 
-候选V4在 `docs/modules/a-pending-migrations/V4__approval.sql`，不在Flyway位置，仅在隔离H2执行表结构/约束检查，Flyway历史不登记4。不得在现有MySQL库直接运行或启用out-of-order。候选request_key唯一约束供后续幂等提交使用，不代表当前已有幂等保存。
+### 状态、幂等和事务
 
-ApprovalAttendancePort是A/B待确认的候选SPI，当前无B实现。后续需重新校验当前身份/公司、真实班次/冲突，以approvalId幂等调整，并将申请版本、审计和B调整放在同一事务，失败整体回滚。反向调整接口未定义，因此暂不开放通过后撤销。C当前只能用status了解能力；AI不能把preview当作提交成功。
+- PENDING仅可转APPROVED/REJECTED/WITHDRAWN。本人可撤回自己的待审批；ADMIN/同公司HR可审核他人，任何角色不能自审，拒绝原因必填。
+- 创建锁当前员工；相同requestKey和规范化内容返回原记录，不同内容409。待审批/已通过的请假与加班时段不能相交，相邻可以；拒绝/撤回不占时段。补卡同时间/场所/方向重复冲突，最终班次方向冲突由B审核时复查。
+- 处理使用READ_COMMITTED、同一数据源；先锁申请人账号，与B的排班/打卡锁序一致，重新读取申请并校验权限，再以state=PENDING及version执行CAS。状态、审计、B的validate/apply处于同一事务；包括调整插入后日投影失败时整体回滚。
+- 相同action、前置expectedVersion、同一操作者及相同规范化note的精确重试返回原结果，不重复审计/调整；其他重复或旧版本409。B按approvalId幂等，保留原始事件。
+- 人事必须同时满足申请公司快照和申请人当前公司范围，迁移公司后旧人事不可继续读取。公司归属改变时拒绝审核，由本人撤回并重新提交；停用、场所解绑等在同意时重新校验。本人仍可读历史。
+- 请假审核需真实排班；加班当前限一个正式业务日、班次前后4小时窗口，不与正常班次重叠，多日须拆分；实际加班取获批时段与真实出勤重叠。补卡独立追加来源，不伪造原始打卡。具体口径复用[B接口](b-api.md)。
+- **已生效审批不支持撤销**：A/B尚无反向调整契约，禁止直接删申请、调整或原始事件。
 
-前端modules/approval/routes.js提供本人申请、管理审批两个入口，权限为approvals:read、approvals:manage；后台同时校验管理角色。申请内容可校验，提交禁用，列表/历史明确未接入，不显示伪0条。此阶段不等于完整审批流交付。
+前端支持本人填写/校验/提交、分页记录、撤回、管理待审批/已处理、详情与审计、同意/拒绝；写入中禁用重复操作，拒绝说明必填，读取失败明确显示错误。C可用受当前身份范围保护的正常HTTP/Java服务读取申请；AI提交仍须用户确认，通过正常服务并提供稳定requestKey，不自行构造B Adjustment。
 
 ## 个人头像
 
@@ -115,4 +120,4 @@ V2新增org_company、workplace、employee_workplace，扩展sys_department/sys_
 
 数据库复核纠正了此前受限端口检查的误判：MySQL80原本已运行且监听3306；未重装/重启服务或重设root密码。使用用户提供的本机凭据建立 `lianzhi` 专用账号及库，V1/V2实际迁移通过；非演示模式仅创建一个初始管理员。初始化脚本复跑保留账号和数据。
 
-`scripts/test-mysql.ps1` 在独立 `lianzhi_verify` 库运行29项检查，其中27项组织/认证/头像集成测试使用真实MySQL，2项迁移/并发隔离夹具仍使用H2，不将后两项称为MySQL验证。根凭据、应用密码和验证库密码均留在Git忽略目录，未提交。实际浏览器与重启结果见[验证记录](../verification.md)。剩余为外部地图、设备定位、A2审批和B/C完整链路。
+`scripts/test-mysql.ps1` 在独立 `lianzhi_verify` 库运行29项检查，其中27项组织/认证/头像集成测试使用真实MySQL，2项迁移/并发隔离夹具仍使用H2，不将后两项称为MySQL验证。根凭据、应用密码和验证库密码均留在Git忽略目录，未提交。实际浏览器与重启结果见[验证记录](../verification.md)。此为A1历史结果。A2.2结果见[本轮验收](../verification/member-a-approval-2026-10-28.md)，剩余为外部地图、真实设备、人脸SDK及C完整链路。
