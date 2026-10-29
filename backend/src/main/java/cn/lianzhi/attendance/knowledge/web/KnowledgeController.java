@@ -14,7 +14,7 @@ public class KnowledgeController {
     @GetMapping("/status")
     public ApiResponse<Capability> status() {
         return ApiResponse.ok(new Capability(false, "DEPENDENCIES_PENDING", false, false, false,
-                List.of("知识库保存与访问范围尚未接入", "知识库处理服务尚未开放", "向量服务尚未配置或验证")));
+                List.of("知识库持久化尚未接入", "知识库处理服务尚未开放", "向量服务尚未配置或验证")));
     }
     @RequestMapping(value = {"/documents", "/documents/{id}", "/documents/{id}/sources/{sequence}", "/search"},
             method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})

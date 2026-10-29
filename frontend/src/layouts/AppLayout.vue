@@ -16,6 +16,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import BrandMark from '../components/BrandMark.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
 
@@ -28,14 +29,21 @@ const info = ref(null)
 const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
+  { path: '/attendance', name: '考勤工作台', icon: Calendar },
+  { path: '/knowledge', name: '企业知识库', icon: List },
+  { path: '/assistant', name: '业务助手', icon: ChatDotRound },
+  {
+    path: '/organization',
+    name: '组织与场所',
+    icon: OfficeBuilding,
+    permission: 'organization:manage',
+  },
   { path: '/profile', name: '个人信息', icon: User },
+  { path: '/approvals', name: '我的申请', icon: Calendar, permission: 'approvals:read' },
+  { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
-const upcoming = [
-  { name: '组织与场所', icon: OfficeBuilding },
-  { name: '考勤与审批', icon: Calendar },
-  { name: 'AI 业务助手', icon: ChatDotRound },
-]
+const upcoming = [{ name: '考勤打卡', icon: Calendar }]
 watch(
   () => route.path,
   () => {
@@ -118,8 +126,7 @@ async function signOut() {
         <div class="topbar-right">
           <span v-if="info?.demo" class="tag tag-outline demo-badge">演示环境</span
           ><RouterLink to="/profile" class="topbar-user"
-            ><span class="avatar avatar-small">{{ auth.user?.displayName?.slice(-2) }}</span
-            ><span>{{ auth.user?.displayName }}</span></RouterLink
+            ><UserAvatar :user="auth.user" /> <span>{{ auth.user?.displayName }}</span></RouterLink
           ><button
             class="icon-button logout-button"
             aria-label="退出登录"

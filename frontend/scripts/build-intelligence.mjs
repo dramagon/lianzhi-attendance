@@ -1,5 +1,4 @@
-// The module isn't connected to A's root router yet. Compile its lazy Vue component separately
-// so a successful root application build cannot silently omit C's new page.
+// Compile C's exported module and lazy views separately as well as through the main application.
 import { build } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath } from 'node:url'

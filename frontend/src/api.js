@@ -5,7 +5,7 @@ http.interceptors.response.use(
   (response) => response.data.data,
   (error) => {
     const url = error.config?.url || ''
-    if (error.response?.status === 401 && !url.startsWith('/auth/')) {
+    if (error.response?.status === 401 && !url.startsWith('/auth/login')) {
       window.dispatchEvent(new Event('session-expired'))
     }
     error.message = error.response?.data?.message || '暂时无法连接服务，请确认后端已启动后重试'
@@ -14,6 +14,12 @@ http.interceptors.response.use(
 )
 
 export default http
+
+// 每次写请求获取当前会话令牌，支持登录后CSRF轮换。
+export async function write(method, url, data) {
+  const csrf = await http.get('/auth/csrf')
+  return http.request({ method, url, data, headers: { [csrf.headerName]: csrf.token } })
+}
 
 export async function login(username, password) {
   const csrf = await http.get('/auth/csrf')

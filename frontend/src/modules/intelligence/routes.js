@@ -1,6 +1,11 @@
-// A integrates this module into the authenticated layout once the C branch is merged.
-// Status-only page is available to all authenticated roles; backend remains authoritative.
+// Integrated inside the authenticated layout; backend authorizes each business query.
 export default [
+  {
+    path: 'assistant',
+    name: 'assistant',
+    component: () => import('./AssistantView.vue'),
+    meta: { title: '业务助手' },
+  },
   {
     path: 'knowledge',
     name: 'knowledge',
