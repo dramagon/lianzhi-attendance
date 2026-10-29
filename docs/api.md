@@ -4,6 +4,8 @@
 
 A2.2已接通 `/api/approvals` 的真实提交、分页记录、详情、审批/拒绝/撤回与审计，审核和B考勤调整同事务；状态和内容校验接口保留。所有写接口需CSRF，管理访问按公司范围，详见[A模块文档](modules/a-api.md)。
 
+C整合分支提供 `/api/assistant/status`、`/api/assistant/attendance`、`/api/assistant/approvals` 及申请详情，只读复用A/B真实权限和数据。制度问答POST `/api/assistant/ask`因知识库未接入保持503并要求CSRF；详见[C助手文档](modules/c-assistant.md)。
+
 浏览器通过同源 `/api` 访问。成功响应格式：`{"code":"OK","message":"操作成功","data":...}`。认证失败为 HTTP 401；权限或 CSRF 校验失败为 HTTP 403；错误响应的 `data` 为 null。
 
 ## 登录流程

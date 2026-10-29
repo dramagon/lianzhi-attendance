@@ -30,6 +30,8 @@ const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
   { path: '/attendance', name: '考勤工作台', icon: Calendar },
+  { path: '/knowledge', name: '企业知识库', icon: List },
+  { path: '/assistant', name: '业务助手', icon: ChatDotRound },
   {
     path: '/organization',
     name: '组织与场所',
@@ -41,10 +43,7 @@ const navigation = [
   { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
-const upcoming = [
-  { name: '考勤打卡', icon: Calendar },
-  { name: 'AI 业务助手', icon: ChatDotRound },
-]
+const upcoming = [{ name: '考勤打卡', icon: Calendar }]
 watch(
   () => route.path,
   () => {
