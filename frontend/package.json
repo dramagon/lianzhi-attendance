@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "playwright test",
-    "format": "prettier --write \"src/**/*.{vue,js,css}\" \"e2e/**/*.js\" \"scripts/**/*.mjs\" \"*.{js,html,json}\""
+    "test:map": "playwright test --config playwright.map.config.js",
+    "format": "prettier --write \"src/**/*.{vue,js,css}\" \"e2e/**/*.js\" \"map-e2e/**/*.js\" \"scripts/**/*.mjs\" \"*.{js,html,json}\""
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

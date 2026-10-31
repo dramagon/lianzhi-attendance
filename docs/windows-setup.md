@@ -91,6 +91,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 
 ## 常见排查
 
+### 高德地图凭据
+
+1. 在[高德开放平台](https://lbs.amap.com/)注册/登录，按页面要求完成开发者认证。
+2. 控制台进入“应用管理→我的应用”，创建应用，例如“联智考勤”。
+3. 添加Key，服务平台选择 **Web端(JS API)**；创建后取得Key及配套安全密钥securityJsCode。参见[官方准备说明](https://lbs.amap.com/api/javascript-api-v2/prerequisites)。
+4. 复制 `frontend/.env.example` 为本机 `frontend/.env.local`，填写 `VITE_AMAP_KEY` 和 `VITE_AMAP_SECURITY_CODE`；已有本机文件时直接编辑，勿覆盖其他配置。
+5. 重启前端，登录管理员/人事，进入“组织与场所→办公场所”，打开新增或编辑弹窗。地图点击后先预览，点击“采用地图位置”才填入表单，最终保存才落库。
+
+需要同时配置Key和安全密钥，依据[高德安全密钥说明](https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode)。本机文件不提交Git或发送到聊天。若出现INVALID_USER_DOMAIN，检查域名白名单与当前访问地址；官方[技术咨询](https://lbs.amap.com/cooperation/technical_advisory)说明本地调试可暂不设置白名单，部署时按实际域名配置。
+
+高德选点为GCJ02，仅可作为该坐标系档案保存；当前B打卡只支持WGS84，不能直接拿地图坐标当WGS84使用。设备定位采集WGS84，仍需核对真实办公位置。
+
+地图仿真验收先启动隔离演示后端，再在frontend运行 `npm run test:map`。它在5174启动独立前端，以合成凭据及模拟SDK验证交互，不修改本机配置，不访问真实高德服务。真实地图加载、瓦片、授权和手机定位须另外实测。
+
 | 现象 | 检查位置 |
 | --- | --- |
 | 找不到 java / npm | 安装路径和 PATH，安装后重新打开终端 |
