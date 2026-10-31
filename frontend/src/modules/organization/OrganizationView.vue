@@ -559,7 +559,13 @@ onMounted(async () => {
             @click="locate"
           >
             {{ locating ? '正在采集位置…' : '采集设备位置' }}</button
-          ><MapPicker v-if="dialogVisible" @pick="Object.assign(form, $event)" />
+          ><MapPicker
+            v-if="dialogVisible"
+            :latitude="form.latitude"
+            :longitude="form.longitude"
+            :coordinate-system="form.coordinateSystem"
+            @pick="Object.assign(form, $event)"
+          />
           <div v-if="locationPreview" class="notice org-bindings" role="status">
             <p>
               设备位置预览（WGS84）：{{ locationPreview.latitude }}，{{
