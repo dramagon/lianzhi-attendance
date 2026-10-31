@@ -110,6 +110,8 @@ UserView在原字段之外新增可空avatarUrl，登录/会话/个人资料/管
 
 实现依据[高德官方选点示例](https://lbs.amap.com/demo/javascript-api-v2/example/map/click-to-get-lnglat/)和[安全配置说明](https://developer.amap.com/api/javascript-api-v2/guide/abc/jscode)。本轮没有真实凭据，不宣称外部地图或设备定位通过。
 
+设备定位先展示坐标与精度预览，点击“采用此位置”后才填入表单，再通过普通保存落库；精度超过当前打卡半径时提示重新核对。放弃预览、手工修改坐标/坐标系、关闭编辑、切换分类或离开页面都会使旧定位回调失效，避免写入下一份场所档案。失败后可重试。当前 B 只接受 WGS84 场所；GCJ02/BD09 仍可存档，但不能直接排班打卡，也不在前端静默转换。
+
 ## 迁移与旧资料
 
 V2新增org_company、workplace、employee_workplace，扩展sys_department/sys_user；保留V1、账号ID、原部门与密码哈希。旧版company_id保持空，不猜测归属。ADMIN先建公司/部门，再编辑员工明确选择归属和场所；旧部门迁出有效员工后可停用，仍由ADMIN维护。首次空演示库才生成明确标注的演示公司/部门/账号，已有库不重置、不重复生成。
