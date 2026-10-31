@@ -153,6 +153,19 @@ test('真实申请→人事同意→考勤请假来源，重复审批不会重�
     expect(days[0].attendance.status).toBe('ON_LEAVE')
     expect(days[0].leaveMinutes).toBe(480)
     expect(days[0].approvalIds).toEqual([entry.request.id])
+    await worker.goto('/assistant')
+    await worker.getByLabel('开始日期', { exact: true }).fill(date)
+    await worker.getByLabel('结束日期', { exact: true }).fill(date)
+    await worker.getByRole('button', { name: '查询本人考勤', exact: true }).click()
+    await expect(worker.getByText('有效工时 0 分钟 · 请假 480 分钟 · 加班 0 分钟')).toBeVisible()
+    await expect(worker.getByText(`审批来源：${entry.request.id}`, { exact: true })).toBeVisible()
+    await worker.getByRole('button', { name: '查询本人申请', exact: true }).click()
+    await expect(
+      worker.getByText(`申请 #${entry.request.id} · 已通过`, { exact: true }),
+    ).toBeVisible()
+    await worker.getByRole('link', { name: '查看完整申请与审计', exact: true }).click()
+    await worker.getByRole('button', { name: '我的申请记录', exact: true }).click()
+    await worker.getByRole('button', { name: `查看 #${entry.request.id}`, exact: true }).click()
     await worker.setViewportSize({ width: 390, height: 844 })
     await expect(worker.locator('.sidebar')).not.toBeInViewport()
     expect(await worker.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(

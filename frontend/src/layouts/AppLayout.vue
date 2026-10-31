@@ -43,7 +43,7 @@ const navigation = [
   { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
-const upcoming = [{ name: '考勤打卡', icon: Calendar }]
+const upcoming = [{ name: '统计报表', icon: List }]
 watch(
   () => route.path,
   () => {

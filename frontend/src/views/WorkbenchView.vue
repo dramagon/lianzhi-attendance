@@ -106,13 +106,15 @@ onMounted(load)
       <section class="panel attendance-panel">
         <div class="panel-heading">
           <h2>{{ auth.isEmployee ? '今日考勤' : '考勤概览' }}</h2>
-          <span class="tag tag-neutral">待接入</span>
+          <span class="tag tag-neutral">业务查询</span>
         </div>
         <div class="empty-attendance">
           <div class="empty-icon"><Calendar /></div>
-          <h3>{{ auth.isEmployee ? '打卡功能即将接入' : '考勤数据将在打卡功能上线后展示' }}</h3>
-          <p>当前已完成登录与权限基础。二维码打卡、人脸验证和考勤统计将按阶段接入。</p>
-          <RouterLink to="/roadmap" class="text-link">查看建设进度<ArrowRight /></RouterLink>
+          <h3>查看正式排班与考勤记录</h3>
+          <p>
+            扫码打卡、申请审批和本人业务查询已接通，请进入对应页面查看实际记录。汇总报表待接入。
+          </p>
+          <RouterLink to="/attendance" class="text-link">进入考勤页面<ArrowRight /></RouterLink>
         </div>
       </section>
       <section class="panel identity-panel">
