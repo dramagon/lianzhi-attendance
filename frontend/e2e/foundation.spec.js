@@ -38,11 +38,11 @@ test('人事角色不能打开系统账号或直接调用管理员接口', async
   await expect(page.getByRole('heading', { name: '当前账号没有访问权限' })).toBeVisible()
 })
 
-test('员工手机端可查看身份，考勤待开发且管理接口不可访问', async ({ page }) => {
+test('员工手机端可查看身份与考勤入口，管理接口不可访问', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page, '员工')
   await expect(page.getByRole('heading', { name: '今日考勤' })).toBeVisible()
-  await expect(page.getByText('打卡功能即将接入')).toBeVisible()
+  await expect(page.getByRole('link', { name: '进入考勤页面' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '我的身份' })).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,

@@ -104,3 +104,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。本轮Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
 
 旧V1库升级后账号/部门保留，company_id为空；由ADMIN明确建立公司、部门并调整员工归属，HR分配公司前无公司业务访问权。不要删除原库来绕过升级。浏览器完整验收建议使用另一个空演示库或独立内存库，避免验收账号进入原有数据。
+
+2026-10-31 三人整合版本仍使用上述启动方式。登录后“考勤工作台”“我的申请”和“业务助手”的本人记录查询可用；知识库上传/检索及模型提问保持关闭，不需要配置模型来运行现有业务。整合不新增数据库迁移，当前正式版本为 V4.1。完整验收使用独立 `lianzhi_verify` 演示实例，结束后须切回正式 MySQL 配置；不要在正式库开启演示模式。实际结果见[本轮整合验收](verification/member-a-integration-2026-10-31.md)。
