@@ -31,8 +31,12 @@
 | GET `/attendance/me/records?from=&to=&page=1&size=20` | 本人原始事件，items/total/page/size；size 1–100，page 1–100000 |
 | GET `/attendance/me/days?from=&to=` | 本人按排班日排序的日记录数组；没有排班不推断缺勤 |
 | GET `/attendance/days?userId=&from=&to=` | ADMIN/HR查询范围内员工同口径日记录数组 |
-| GET `/face/status` | SDK能力均false；不把设备预览当识别成功 |
-| POST `/face/enrollment`、`/face/verification` | 当前503，未生成登记或验证凭据 |
+| GET `/face/status` | available、detection/comparison/liveness、provider、message、storageAvailable、enrolled、revision、updatedAt、punchRequired、deletionAvailable；默认未接SDK时关闭 |
+| POST `/face/enrollment` | 本人登记；multipart image（JPEG/PNG≤2MB）、consent=true；已有登记409；未就绪503 |
+| PUT `/face/enrollment` | 本人更新；multipart image、consent=true、expectedRevision；版本变化409，撤销旧挑战 |
+| DELETE `/face/enrollment?expectedRevision=` | 本人删除及撤销挑战；保留原始考勤，SDK/密钥不可用但存储已发布时仍可删除 |
+| POST `/face/challenges` | JSON `{token,requestId,type}`；复核本人绑定/正式排班和二维码，返回id/expiresAt（30秒） |
+| POST `/face/verification` | multipart challengeId、image、consent=true；实际SDK校验，返回verified、verificationId或null、expiresAt、message；失败最多3次 |
 
 Schedule请求：
 
@@ -47,6 +51,10 @@ Schedule请求：
 ```json
 {"type":"IN","token":"签名挑战","requestId":"客户端UUID","location":{"latitude":31.2,"longitude":121.5,"coordinateSystem":"WGS84"},"accuracyMeters":10}
 ```
+
+启用人脸强制策略时，另传`faceVerificationId`，必须是服务端当前本人、二维码nonce、场所、requestId、方向和登记版本匹配的已验证挑战；不能传`verified:true`代替。最终打卡事务消费一次性凭据，落库失败共同回滚；已落库的相同请求仍按原事件幂等返回。
+
+登记/更新返回`{enrolled,revision,updatedAt}`，不输出特征、加密数据或图像。未通过质量、人数、活体、比对时verification返回`verified:false,verificationId:null`，HTTP200不代表识别通过，调用方必须检查verified严格为true。SDK异常503、挑战过期/错配/耗尽400；同一挑战验证完成后不可重新上传，更新/删除使旧挑战失效。服务端阈值来自实际SDK校准配置，不由客户端提交。
 
 当前场所半径支持A的10～10000米范围（底层校验1～10000）；定位精度须为正数且不大于min(半径,100米)，页面定位60秒内有效。Haversine计算距离。GCJ02/BD09场所不会当WGS84打卡：管理方需提供正确WGS84坐标，后续若接转换需另行验证，不静默换算或改写A场所。
 

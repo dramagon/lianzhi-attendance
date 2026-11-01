@@ -2,7 +2,9 @@
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import http from '../../api'
 import QrScanner from './QrScanner.vue'
+import MobileAcceptance from './MobileAcceptance.vue'
 const secure = window.isSecureContext
+const https = window.location.protocol === 'https:'
 const supportsCamera = !!navigator.mediaDevices?.getUserMedia
 const supportsLocation = !!navigator.geolocation
 const online = ref(navigator.onLine),
@@ -256,6 +258,17 @@ onUnmounted(() => {
         <li>记录手机型号、系统、浏览器和实际结果；本页检查通过不能代替真实打卡或人脸SDK验收。</li>
       </ol>
     </section>
+    <MobileAcceptance
+      :observations="{
+        secureContext: secure,
+        https,
+        online,
+        serviceConnected: connected,
+        location: locationStatus,
+        camera: cameraStatus,
+        qr: qrStatus,
+      }"
+    />
   </div>
 </template>
 <style scoped>

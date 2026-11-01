@@ -15,6 +15,7 @@ import {
 import http from '../../api'
 import QrScanner from './QrScanner.vue'
 import QrChallenge from './QrChallenge.vue'
+import FaceActions from './FaceActions.vue'
 import { useAuthStore } from '../../stores/auth'
 import { attendancePost, businessDate, statusLabels, timeText } from './api'
 
@@ -32,6 +33,13 @@ const now = ref(new Date()),
   workplaceId = ref(''),
   token = ref(''),
   punchType = ref('IN')
+const faceProof = ref(null)
+const faceRequired = computed(
+  () => face.value?.punchRequired === true || workplaces.value.some((place) => place.faceRequired),
+)
+const faceProofFresh = computed(
+  () => !!faceProof.value && Date.parse(faceProof.value.expiresAt) > now.value.getTime(),
+)
 const location = ref(null),
   locating = ref(false),
   punching = ref(false),
@@ -92,7 +100,8 @@ const canPunch = computed(
     token.value.trim() &&
     locationFresh.value &&
     !punching.value &&
-    !pendingPunch.value,
+    !pendingPunch.value &&
+    (!faceRequired.value || faceProofFresh.value),
 )
 // Only a request identifier is kept in this tab, never a QR token, coordinates or image.
 const pendingKey = `lianzhi.b.pending-punch.${auth.user.id}`
@@ -285,15 +294,17 @@ watch(
   },
   { deep: true, flush: 'sync' },
 )
-watch([token, punchType], () => {
-  requestId.value = null
-})
+function newPunchRequest() {
+  faceProof.value = null
+  requestId.value = token.value.trim() ? crypto.randomUUID() : null
+}
+watch([token, punchType], newPunchRequest)
 function locate() {
   if (punching.value || pendingPunch.value) return
   const revision = ++locationRevision
   feedback.value = ''
   location.value = null
-  requestId.value = null
+  newPunchRequest()
   if (!window.isSecureContext) {
     feedback.value = '定位需要 HTTPS 安全环境，请通过安全地址访问。'
     return
@@ -350,6 +361,7 @@ async function punch() {
         coordinateSystem: 'WGS84',
       },
       accuracyMeters: location.value.accuracy,
+      faceVerificationId: faceProof.value?.verificationId || null,
     })
     if (disposed) return
     rememberPending(null)
@@ -469,6 +481,7 @@ watch(cameraConsent, (allowed) => {
 })
 watch(view, (v) => {
   stopCamera()
+  faceProof.value = null
   locationRevision++
   locating.value = false
   location.value = null
@@ -477,6 +490,7 @@ watch(view, (v) => {
 })
 function suspend() {
   stopCamera()
+  faceProof.value = null
   locationRevision++
   locating.value = false
   location.value = null
@@ -620,6 +634,21 @@ onUnmounted(() => {
             />
           </label>
           <QrScanner v-if="available && !punching && !pendingPunch" @scanned="token = $event" />
+          <FaceActions
+            v-if="faceRequired"
+            mode="verify"
+            :status="face"
+            :context="{ token: token.trim(), requestId, type: punchType }"
+            :disabled="punching || !!pendingPunch"
+            @verified="faceProof = $event"
+          />
+          <p v-if="faceRequired" class="b-small">
+            {{
+              faceProofFresh
+                ? '本次人脸凭据有效，可提交打卡'
+                : '本次打卡需要服务端人脸验证；未就绪或凭据过期时不能提交'
+            }}
+          </p>
           <button class="b-punch-button" :disabled="!canPunch" @click="punch">
             <Clock />{{ punching ? '正在提交…' : available ? '确认打卡' : '等待业务接入' }}
           </button>
@@ -917,6 +946,7 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="view === 'face'">
+      <FaceActions :status="face" @changed="load" />
       <div class="b-grid">
         <section class="b-card">
           <div class="b-card-title">

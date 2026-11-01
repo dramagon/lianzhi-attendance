@@ -278,7 +278,7 @@ async function prepareFaceCamera(page) {
   })
   await login(page)
   await page.goto('/attendance/face')
-  await page.getByRole('checkbox').check()
+  await page.getByRole('checkbox', { name: /我同意仅开启本机摄像头预览/ }).check()
 }
 
 test('人脸预览取消后旧授权成功只释放旧设备，旧失败不关闭新预览', async ({ page }) => {
@@ -302,7 +302,7 @@ test('人脸预览取消后旧授权成功只释放旧设备，旧失败不关�
   await page.evaluate(() => new Promise(requestAnimationFrame))
   await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await page.getByRole('checkbox').uncheck()
+  await page.getByRole('checkbox', { name: /我同意仅开启本机摄像头预览/ }).uncheck()
   await expect.poll(() => page.evaluate(() => window.faceStops)).toBe(3)
 })
 
