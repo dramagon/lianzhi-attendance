@@ -107,8 +107,40 @@ test('正式排班→真实二维码图片识别→定位→上下班→本人�
         .getByLabel('识别二维码图片', { exact: true })
         .setInputFiles({ name: 'attendance.png', mimeType: 'image/png', buffer: png })
       await expect(worker.getByLabel('场所挑战令牌', { exact: true })).toHaveValue(challenge.token)
+      let posts = 0
+      if (type === 'OUT') {
+        // The real server commits the event, then the browser loses its response.
+        await worker.route('**/api/attendance/me/punches', async (route) => {
+          posts++
+          const response = await route.fetch()
+          expect(response.ok()).toBeTruthy()
+          await route.abort('connectionreset')
+        })
+      }
       await worker.getByRole('button', { name: '确认打卡', exact: true }).click()
-      await expect(worker.getByRole('status')).toContainText('打卡成功')
+      if (type === 'OUT') {
+        await expect(
+          worker.getByText('上次打卡结果待核对，已暂停新的提交。', { exact: true }),
+        ).toBeVisible()
+        const saved = await worker.evaluate(() =>
+          Object.entries(sessionStorage).filter(([key]) =>
+            key.startsWith('lianzhi.b.pending-punch.'),
+          ),
+        )
+        expect(saved).toHaveLength(1)
+        expect(Object.keys(JSON.parse(saved[0][1])).sort()).toEqual(['requestId', 'type'])
+        await expect(worker.getByRole('button', { name: '确认打卡', exact: true })).toBeDisabled()
+        await worker.reload()
+        await expect(worker.getByRole('status').filter({ hasText: '已确认打卡成功' })).toBeVisible()
+        expect(posts).toBe(1)
+        expect(
+          await worker.evaluate(() =>
+            Object.keys(sessionStorage).some((key) => key.startsWith('lianzhi.b.pending-punch.')),
+          ),
+        ).toBe(false)
+      } else {
+        await expect(worker.getByRole('status')).toContainText('打卡成功')
+      }
     }
     await worker.goto('/attendance/records')
     await expect(worker.locator('tbody tr')).toHaveCount(2)

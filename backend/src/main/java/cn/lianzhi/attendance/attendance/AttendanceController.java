@@ -31,6 +31,10 @@ public class AttendanceController {
     public ApiResponse<QrTokens.Issued> challenge(Principal p, @PathVariable long workplaceId) { return ApiResponse.ok(attendance.issue(user(p), workplaceId)); }
     @PostMapping("/me/punches")
     public ApiResponse<AttendanceService.EventView> punch(Principal p, @RequestBody AttendanceService.Punch request) { return ApiResponse.ok(attendance.punch(user(p), request)); }
+    @GetMapping("/me/punches/requests/{requestId}")
+    public ApiResponse<AttendanceService.PunchReceipt> receipt(Principal p, @PathVariable String requestId) {
+        return ApiResponse.ok(attendance.receipt(user(p), requestId));
+    }
     @GetMapping("/me/records")
     public ApiResponse<AttendanceService.Records> records(Principal p, @RequestParam LocalDate from, @RequestParam LocalDate to,
                                                         @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="20") int size) {

@@ -28,6 +28,15 @@ public class AttendanceService {
         }
     }
     public record Records(List<EventView> items, long total, int page, int size) {}
+    public record PunchReceipt(boolean found, EventView event) {}
+    /** Read-only recovery after a lost response; never replays a punch or trusts a client user ID. */
+    public PunchReceipt receipt(long userId, String requestId) {
+        required();
+        if (requestId == null || !requestId.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+            throw new IllegalArgumentException("请求编号无效，请查看本人考勤记录");
+        return store.byRequest(userId, requestId).map(e -> new PunchReceipt(true, EventView.from(e)))
+            .orElseGet(() -> new PunchReceipt(false, null));
+    }
     public Capability capability() {
         boolean directory = directories.getIfAvailable() != null, storage = store.ready();
         List<String> blockers = new ArrayList<>();
