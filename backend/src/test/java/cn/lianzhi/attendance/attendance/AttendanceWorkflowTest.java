@@ -122,4 +122,24 @@ class AttendanceWorkflowTest {
         assertThat(schedules.current(user,date.atTime(2,0).atZone(AttendanceRules.ZONE).toInstant()).businessDate()).isEqualTo(date.minusDays(1));
     }
 
+    @Test void lostResponseCanBeRecoveredAfterTokenExpiryAndNextBusinessDay(){
+        String requestId=UUID.randomUUID().toString();
+        var event=service.punch(user,new AttendanceService.Punch("IN",tokens.issue(place).token(),requestId,new GeoFence.Point(31.2,121.5,"WGS84"),10.0));
+        clock.value=clock.value.plus(Duration.ofDays(2));
+        jdbc.update("DELETE FROM employee_workplace WHERE user_id=?",user);
+        assertThat(service.receipt(user,requestId)).isEqualTo(new AttendanceService.PunchReceipt(true,event));
+        assertThat(store.day(user,date)).hasSize(1);
+    }
+    @Test void receiptIsScopedToOwnerAndMissingReceiptNeverCreatesEvent(){
+        String requestId=UUID.randomUUID().toString();
+        service.punch(user,new AttendanceService.Punch("IN",tokens.issue(place).token(),requestId,new GeoFence.Point(31.2,121.5,"WGS84"),10.0));
+        assertThat(service.receipt(admin,requestId)).isEqualTo(new AttendanceService.PunchReceipt(false,null));
+        assertThat(service.receipt(user,UUID.randomUUID().toString())).isEqualTo(new AttendanceService.PunchReceipt(false,null));
+        assertThat(store.day(user,date)).hasSize(1);
+    }
+    @Test void receiptRejectsMalformedRequestIds(){
+        for (String value:Arrays.asList(null,"", "1-1-1-1-1", "not-a-request"))
+            assertThatThrownBy(()->service.receipt(user,value)).isInstanceOf(IllegalArgumentException.class);
+    }
+
 }

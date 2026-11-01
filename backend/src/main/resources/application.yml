@@ -29,3 +29,8 @@ mybatis:
 lianzhi:
   demo: false
   avatar-directory: ${AVATAR_DIRECTORY:./data/avatars}
+  face:
+    enabled: ${LIANZHI_FACE_ENABLED:false}
+    required-for-punch: ${LIANZHI_FACE_REQUIRED:false}
+    encryption-key: ${LIANZHI_FACE_ENCRYPTION_KEY:}
+    minimum-score: ${LIANZHI_FACE_MINIMUM_SCORE:-1}

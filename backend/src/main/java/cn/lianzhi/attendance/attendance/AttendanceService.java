@@ -12,22 +12,41 @@ public class AttendanceService {
     private final AttendanceStore store;
     private final QrTokens tokens;
     private final Clock clock;
+    private final cn.lianzhi.attendance.face.FaceAttendancePort faces;
     @org.springframework.beans.factory.annotation.Autowired
-    public AttendanceService(ObjectProvider<AttendanceDirectory> directories, AttendanceStore store, QrTokens tokens) {
-        this(directories, store, tokens, Clock.systemUTC());
+    public AttendanceService(ObjectProvider<AttendanceDirectory> directories, AttendanceStore store, QrTokens tokens,
+                             cn.lianzhi.attendance.face.FaceAttendancePort faces) {
+        this(directories, store, tokens, Clock.systemUTC(),faces);
     }
     AttendanceService(ObjectProvider<AttendanceDirectory> directories, AttendanceStore store, QrTokens tokens, Clock clock) {
-        this.directories = directories; this.store = store; this.tokens = tokens; this.clock = clock;
+        this(directories,store,tokens,clock,null);
+    }
+    AttendanceService(ObjectProvider<AttendanceDirectory> directories, AttendanceStore store, QrTokens tokens, Clock clock,
+                      cn.lianzhi.attendance.face.FaceAttendancePort faces) {
+        this.directories = directories; this.store = store; this.tokens = tokens; this.clock = clock; this.faces=faces;
     }
     public record Capability(boolean available, boolean rulesAvailable, boolean directoryAvailable,
                              boolean storageAvailable, String timeZone, Instant serverTime, List<String> blockers) {}
-    public record Punch(String type, String token, String requestId, GeoFence.Point location, Double accuracyMeters) {}
+    public record Punch(String type, String token, String requestId, GeoFence.Point location, Double accuracyMeters, String faceVerificationId) {
+        public Punch(String type,String token,String requestId,GeoFence.Point location,Double accuracyMeters) {
+            this(type,token,requestId,location,accuracyMeters,null);
+        }
+    }
     public record EventView(long id, long workplaceId, LocalDate businessDate, String type, Instant occurredAt, double distanceMeters) {
         public static EventView from(AttendanceStore.Event e) {
             return new EventView(e.id(), e.workplaceId(), e.businessDate(), e.type(), e.occurredAt(), e.distanceMeters());
         }
     }
     public record Records(List<EventView> items, long total, int page, int size) {}
+    public record PunchReceipt(boolean found, EventView event) {}
+    /** Read-only recovery after a lost response; never replays a punch or trusts a client user ID. */
+    public PunchReceipt receipt(long userId, String requestId) {
+        required();
+        if (requestId == null || !requestId.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+            throw new IllegalArgumentException("请求编号无效，请查看本人考勤记录");
+        return store.byRequest(userId, requestId).map(e -> new PunchReceipt(true, EventView.from(e)))
+            .orElseGet(() -> new PunchReceipt(false, null));
+    }
     public Capability capability() {
         boolean directory = directories.getIfAvailable() != null, storage = store.ready();
         List<String> blockers = new ArrayList<>();
@@ -55,7 +74,6 @@ public class AttendanceService {
         AttendanceDirectory.Assignment assignment = directory.forPunch(userId, qr.workplaceId(), clock.instant());
         if (assignment == null || assignment.workplace() == null || assignment.rule() == null || assignment.businessDate() == null
                 || assignment.workplace().id() != qr.workplaceId()) throw AttendanceProblem.unavailable("员工尚未分配有效场所与班次");
-        if (assignment.workplace().faceRequired()) throw AttendanceProblem.unavailable("该场所要求真实人脸验证，当前人脸能力尚未接入");
         if (request.location == null || request.accuracyMeters == null) throw new IllegalArgumentException("请先获取有效定位");
         double distance = GeoFence.check(request.location, assignment.workplace().point(), request.accuracyMeters, assignment.workplace().radiusMeters());
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), AttendanceRules.ZONE);
@@ -81,6 +99,10 @@ public class AttendanceService {
         if ("OUT".equals(request.type) && adjustedIn==null && events.stream().noneMatch(e -> e.type().equals("IN")))
             throw new IllegalArgumentException("请先完成本班次上班打卡");
         if (events.stream().anyMatch(e -> !clock.instant().isAfter(e.occurredAt()))) throw new IllegalArgumentException("签退时间须晚于签到");
+        if(assignment.workplace().faceRequired() || (faces!=null && faces.requiredForPunch())) {
+            if(faces==null) throw AttendanceProblem.unavailable("该场所要求真实人脸验证，当前人脸能力尚未接入");
+            faces.consume(userId,qr.workplaceId(),qr.nonce(),request.requestId,request.type,request.faceVerificationId);
+        }
         return EventView.from(store.append(userId, qr.workplaceId(), assignment.businessDate(), request.type, clock.instant(), request.requestId, qr.nonce(), distance));
     }
     public Records records(long userId, LocalDate from, LocalDate to, int page, int size) {
