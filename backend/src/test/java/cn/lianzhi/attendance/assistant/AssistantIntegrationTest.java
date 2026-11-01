@@ -85,7 +85,7 @@ class AssistantIntegrationTest {
         mvc.perform(get("/api/assistant/status")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/assistant/status").with(user(username))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.knowledgeAvailable").value(false)).andExpect(jsonPath("$.data.businessQueriesAvailable").value(true))
-                .andExpect(jsonPath("$.data.writeAvailable").value(false)).andExpect(jsonPath("$.data.modelConfiguration").value("NOT_CONFIGURED"));
+                .andExpect(jsonPath("$.data.writeAvailable").value(true)).andExpect(jsonPath("$.data.modelConfiguration").value("NOT_CONFIGURED"));
         mvc.perform(post("/api/assistant/ask").with(user(username))).andExpect(status().isForbidden());
         mvc.perform(post("/api/assistant/ask").with(user(username)).with(csrf())).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.data").isEmpty());
         assertThat(context.getBeansOfType(KnowledgeWorkspace.class)).isEmpty();assertThat(context.getBeansOfType(CitedAnswerService.class)).isEmpty();

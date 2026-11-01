@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--maven-settings', type=Path)
     parser.add_argument('--maven-repo', type=Path)
+    parser.add_argument('--face-candidate', action='store_true', help='Also verify candidate V4/V5 and face business flow in another disposable database, with a test-only SDK simulator')
     args = parser.parse_args()
     if not shutil.which('docker'):
         raise RuntimeError('Docker is required; no database was changed.')
@@ -57,7 +58,7 @@ def main():
         env.update(
                    SPRING_DATASOURCE_USERNAME='b_verify', SPRING_DATASOURCE_PASSWORD=password,
                    SPRING_PROFILES_ACTIVE='test')
-        def configure_endpoint():
+        def configure_endpoint(database='lianzhi_b_verify'):
             # Docker may allocate a different random host port after restart.
             port = command(['docker', 'port', name, '3306/tcp']).rsplit(':', 1)[1]
             deadline = time.monotonic() + 30
@@ -69,8 +70,9 @@ def main():
                     if time.monotonic() >= deadline:
                         raise RuntimeError('Published MySQL port is not reachable')
                     time.sleep(0.5)
-            url = 'jdbc:mysql://127.0.0.1:' + port + '/lianzhi_b_verify?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
+            url = 'jdbc:mysql://127.0.0.1:' + port + '/' + database + '?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
             env.update(SPRING_DATASOURCE_URL=url, LIANZHI_ATTENDANCE_TEST_URL=url)
+            return url
         configure_endpoint()
         maven = ['cmd', '/c', 'mvnw.cmd'] if os.name == 'nt' else ['sh', './mvnw']
         maven += ['-B', '-ntp']
@@ -117,6 +119,13 @@ SELECT approval_id,user_id,company_id,draft_json,approver_id,approved_at FROM at
                   'schedules': int(sql('SELECT COUNT(*) FROM attendance_schedule;')),
                   'adjustments': int(sql('SELECT COUNT(*) FROM attendance_adjustment;')),
                   'restart_fingerprint': after, 'restart_unchanged': True}
+        if args.face_candidate:
+            # Deliberately separate from the V1/V2/V3 business/restart database above.
+            sql("CREATE DATABASE lianzhi_b_face_verify CHARACTER SET utf8mb4; GRANT ALL ON lianzhi_b_face_verify.* TO 'b_verify'@'%';")
+            env['LIANZHI_FACE_TEST_URL'] = configure_endpoint('lianzhi_b_face_verify')
+            report['face_candidate_test_count'] = tests('FaceWorkflowTest', 'face-candidate.log')
+            report['face_candidate_migration_versions'] = sql('SELECT version FROM lianzhi_b_face_verify.flyway_schema_history WHERE success=1 ORDER BY installed_rank;').splitlines()
+            report['face_test_provider'] = 'TEST_ONLY_SIMULATOR_NOT_REAL_RECOGNITION'
         (folder / 'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
         print(json.dumps(report, ensure_ascii=False, indent=2), flush=True)
     finally:

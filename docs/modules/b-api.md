@@ -27,11 +27,16 @@
 | GET `/attendance/managed/workplaces` | ADMIN/HR管理范围内启用且WGS84的场所（当前选择器最多100个） |
 | POST `/attendance/workplaces/{id}/challenge` | ADMIN/HR且有场所公司管理范围；返回token、expiresAt |
 | POST `/attendance/me/punches` | 本人真实打卡；无排班503、无绑定403、输入/范围错误400、重复409 |
+| GET `/attendance/me/punches/requests/{requestId}` | 登录后只读查询本人的请求回执；UUID无效400；已落库返回`{found:true,event:EventView}`，暂未查到返回`{found:false,event:null}` |
 | GET `/attendance/me/records?from=&to=&page=1&size=20` | 本人原始事件，items/total/page/size；size 1–100，page 1–100000 |
 | GET `/attendance/me/days?from=&to=` | 本人按排班日排序的日记录数组；没有排班不推断缺勤 |
 | GET `/attendance/days?userId=&from=&to=` | ADMIN/HR查询范围内员工同口径日记录数组 |
-| GET `/face/status` | SDK能力均false；不把设备预览当识别成功 |
-| POST `/face/enrollment`、`/face/verification` | 当前503，未生成登记或验证凭据 |
+| GET `/face/status` | available、detection/comparison/liveness、provider、message、storageAvailable、enrolled、revision、updatedAt、punchRequired、deletionAvailable；默认未接SDK时关闭 |
+| POST `/face/enrollment` | 本人登记；multipart image（JPEG/PNG≤2MB）、consent=true；已有登记409；未就绪503 |
+| PUT `/face/enrollment` | 本人更新；multipart image、consent=true、expectedRevision；版本变化409，撤销旧挑战 |
+| DELETE `/face/enrollment?expectedRevision=` | 本人删除及撤销挑战；保留原始考勤，SDK/密钥不可用但存储已发布时仍可删除 |
+| POST `/face/challenges` | JSON `{token,requestId,type}`；复核本人绑定/正式排班和二维码，返回id/expiresAt（30秒） |
+| POST `/face/verification` | multipart challengeId、image、consent=true；实际SDK校验，返回verified、verificationId或null、expiresAt、message；失败最多3次 |
 
 Schedule请求：
 
@@ -47,7 +52,19 @@ Schedule请求：
 {"type":"IN","token":"签名挑战","requestId":"客户端UUID","location":{"latitude":31.2,"longitude":121.5,"coordinateSystem":"WGS84"},"accuracyMeters":10}
 ```
 
+启用人脸强制策略时，另传`faceVerificationId`，必须是服务端当前本人、二维码nonce、场所、requestId、方向和登记版本匹配的已验证挑战；不能传`verified:true`代替。最终打卡事务消费一次性凭据，落库失败共同回滚；已落库的相同请求仍按原事件幂等返回。
+
+登记/更新返回`{enrolled,revision,updatedAt}`，不输出特征、加密数据或图像。未通过质量、人数、活体、比对时verification返回`verified:false,verificationId:null`，HTTP200不代表识别通过，调用方必须检查verified严格为true。SDK异常503、挑战过期/错配/耗尽400；同一挑战验证完成后不可重新上传，更新/删除使旧挑战失效。服务端阈值来自实际SDK校准配置，不由客户端提交。
+
 当前场所半径支持A的10～10000米范围（底层校验1～10000）；定位精度须为正数且不大于min(半径,100米)，页面定位60秒内有效。Haversine计算距离。GCJ02/BD09场所不会当WGS84打卡：管理方需提供正确WGS84坐标，后续若接转换需另行验证，不静默换算或改写A场所。
+
+### 响应丢失与网络恢复（2026-11-01）
+
+浏览器在提交前将`{requestId,type}`保存到当前标签页的sessionStorage，以当前登录用户ID分隔；不保存二维码、定位、照片或Cookie。请求超时、连接中断或5xx时保持“结果待核对”，暂停新的提交。恢复联网、重新进入考勤页或刷新时只发起回执GET，不自动重发POST；也可手动点击“核对上次打卡结果”。禁用浏览器存储时仅保留当前页面内存状态，刷新后需查看本人记录核实。
+
+回执查询由认证上下文确定userId，即使管理人员持有其他员工的requestId也查不到该员工记录。查询只读取已存在的原始事件，不要求仍持有有效二维码、当前班次或场所绑定；因此令牌过期、跨业务日后仍可核实历史提交。返回EventView，不输出内部nonce、请求编号和原始位置。
+
+`found:false`只表示查询时尚未看到已提交记录，不证明原请求已经取消。页面提示稍后再查；若选择“重新准备打卡”，需再次确认，并清空二维码、定位及旧请求编号。必须重新扫码和定位，服务端同班次/方向的唯一约束仍生效。此查询不提供离线打卡、自动补签或补发队列。
 
 ## 排班与统一日口径
 
@@ -91,3 +108,5 @@ MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检�
 班次候选查询覆盖昨天/今天/明天，凌晨班次支持前一晚进入提前4小时窗口。排班页按请求版本隔离旧响应；扫码支持取消等待、丢弃旧图片与旧授权结果，切页/切后台释放设备。
 
 新增认证路由`/attendance/device`检查当前设备环境，不提交打卡或人脸登记，不新增数据API。独立HTTPS验收工具见tools/mobile-acceptance/README.md；真机执行情况仍须单独填写验收表，不能以浏览器仿真代替。
+
+2026-11-01人脸本机预览支持取消授权等待，晚到的旧授权/播放失败不会影响新预览；撤回授权、切页、切后台及pagehide释放摄像头，返回后需主动重新开启。打卡定位也丢弃失效页面的旧回调，按设备提供的定位时间判断新鲜度。SDK接入条件与验收顺序见[人脸接入交接](b-face-integration.md)。

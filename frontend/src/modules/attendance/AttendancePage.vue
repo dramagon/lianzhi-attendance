@@ -15,6 +15,7 @@ import {
 import http from '../../api'
 import QrScanner from './QrScanner.vue'
 import QrChallenge from './QrChallenge.vue'
+import FaceActions from './FaceActions.vue'
 import { useAuthStore } from '../../stores/auth'
 import { attendancePost, businessDate, statusLabels, timeText } from './api'
 
@@ -32,6 +33,13 @@ const now = ref(new Date()),
   workplaceId = ref(''),
   token = ref(''),
   punchType = ref('IN')
+const faceProof = ref(null)
+const faceRequired = computed(
+  () => face.value?.punchRequired === true || workplaces.value.some((place) => place.faceRequired),
+)
+const faceProofFresh = computed(
+  () => !!faceProof.value && Date.parse(faceProof.value.expiresAt) > now.value.getTime(),
+)
 const location = ref(null),
   locating = ref(false),
   punching = ref(false),
@@ -87,8 +95,81 @@ const locationFresh = computed(
   () => location.value && now.value.getTime() - location.value.timestamp < 60000,
 )
 const canPunch = computed(
-  () => available.value && token.value.trim() && locationFresh.value && !punching.value,
+  () =>
+    available.value &&
+    token.value.trim() &&
+    locationFresh.value &&
+    !punching.value &&
+    !pendingPunch.value &&
+    (!faceRequired.value || faceProofFresh.value),
 )
+// Only a request identifier is kept in this tab, never a QR token, coordinates or image.
+const pendingKey = `lianzhi.b.pending-punch.${auth.user.id}`
+const pendingPunch = ref(readPending()),
+  receiptBusy = ref(false),
+  receiptMessage = ref(''),
+  receiptMissing = ref(false)
+function readPending() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(pendingKey))
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value?.requestId,
+    ) && ['IN', 'OUT'].includes(value?.type)
+      ? { requestId: value.requestId, type: value.type }
+      : null
+  } catch {
+    return null
+  }
+}
+function rememberPending(value) {
+  pendingPunch.value = value
+  receiptMissing.value = false
+  receiptMessage.value = ''
+  try {
+    if (value) sessionStorage.setItem(pendingKey, JSON.stringify(value))
+    else sessionStorage.removeItem(pendingKey)
+  } catch {
+    /* Recovery remains available in memory when browser storage is disabled. */
+  }
+}
+async function checkReceipt() {
+  if (!pendingPunch.value || punching.value || receiptBusy.value) return
+  const pending = pendingPunch.value
+  receiptBusy.value = true
+  receiptMessage.value = ''
+  receiptMissing.value = false
+  try {
+    const receipt = await http.get(`/attendance/me/punches/requests/${pending.requestId}`)
+    if (disposed || pendingPunch.value !== pending) return
+    if (receipt.found && receipt.event) {
+      rememberPending(null)
+      token.value = ''
+      feedback.value = `已确认打卡成功 · ${timeText(receipt.event.occurredAt)}，未重复提交。`
+      if (view.value === 'records') loadRecords()
+    } else {
+      receiptMissing.value = true
+      receiptMessage.value =
+        '暂未查到本次记录，原请求可能仍在处理。请稍后再次核对，或查看考勤记录后重新准备。'
+    }
+  } catch {
+    if (!disposed) receiptMessage.value = '暂时无法核对结果，请恢复网络后重试；不会自动补发打卡。'
+  } finally {
+    if (!disposed) receiptBusy.value = false
+  }
+}
+function prepareAgain() {
+  if (receiptBusy.value || !receiptMissing.value) return
+  if (
+    !window.confirm(
+      '原请求仍可能完成，请先核对考勤记录。重新准备会清空二维码和定位，服务器仍会拒绝同班次重复打卡。是否继续？',
+    )
+  )
+    return
+  rememberPending(null)
+  token.value = ''
+  location.value = null
+  requestId.value = null
+}
 const serverClock = computed(() => timeText(now.value))
 const dateText = computed(() =>
   new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'full' }).format(
@@ -99,7 +180,9 @@ let timer,
   stream,
   disposed = false,
   loadRevision = 0,
-  recordsRevision = 0
+  recordsRevision = 0,
+  cameraRevision = 0,
+  locationRevision = 0
 const video = ref(null),
   cameraBusy = ref(false),
   cameraActive = ref(false),
@@ -153,8 +236,13 @@ async function load() {
     capability.value = status
     face.value = faceStatus
     if (status.available) {
-      workplaces.value = await http.get('/attendance/me/workplaces')
-      if (canManage.value) managedPlaces.value = await http.get('/attendance/managed/workplaces')
+      const [ownPlaces, managerPlaces] = await Promise.all([
+        http.get('/attendance/me/workplaces'),
+        canManage.value ? http.get('/attendance/managed/workplaces') : Promise.resolve([]),
+      ])
+      if (disposed || revision !== loadRevision) return
+      workplaces.value = ownPlaces
+      managedPlaces.value = managerPlaces
       workplaceId.value = managedPlaces.value[0]?.id || ''
       if (view.value === 'records') await loadRecords()
     }
@@ -206,13 +294,17 @@ watch(
   },
   { deep: true, flush: 'sync' },
 )
-watch([token, punchType], () => {
-  requestId.value = null
-})
+function newPunchRequest() {
+  faceProof.value = null
+  requestId.value = token.value.trim() ? crypto.randomUUID() : null
+}
+watch([token, punchType], newPunchRequest)
 function locate() {
+  if (punching.value || pendingPunch.value) return
+  const revision = ++locationRevision
   feedback.value = ''
   location.value = null
-  requestId.value = null
+  newPunchRequest()
   if (!window.isSecureContext) {
     feedback.value = '定位需要 HTTPS 安全环境，请通过安全地址访问。'
     return
@@ -224,17 +316,17 @@ function locate() {
   locating.value = true
   navigator.geolocation.getCurrentPosition(
     (p) => {
-      if (disposed) return
+      if (disposed || revision !== locationRevision) return
       location.value = {
         latitude: p.coords.latitude,
         longitude: p.coords.longitude,
         accuracy: p.coords.accuracy,
-        timestamp: Date.now(),
+        timestamp: p.timestamp,
       }
       locating.value = false
     },
     (e) => {
-      if (disposed) return
+      if (disposed || revision !== locationRevision) return
       locating.value = false
       feedback.value =
         {
@@ -258,6 +350,7 @@ async function punch() {
   feedback.value = ''
   try {
     requestId.value ||= crypto.randomUUID()
+    rememberPending({ requestId: requestId.value, type: punchType.value })
     const event = await attendancePost('/attendance/me/punches', {
       type: punchType.value,
       token: token.value.trim(),
@@ -268,11 +361,19 @@ async function punch() {
         coordinateSystem: 'WGS84',
       },
       accuracyMeters: location.value.accuracy,
+      faceVerificationId: faceProof.value?.verificationId || null,
     })
+    if (disposed) return
+    rememberPending(null)
     token.value = ''
     feedback.value = `打卡成功 · ${timeText(event.occurredAt)}，可在考勤记录查看。`
   } catch (e) {
+    // A transport error or server failure leaves the outcome unknown. A 4xx is authoritative.
+    if (disposed) return
+    if (e.response && e.response.status < 500) rememberPending(null)
     feedback.value = e.message
+    if (pendingPunch.value)
+      receiptMessage.value = '本次打卡结果待核对，请恢复连接后查询，不要重复提交。'
   } finally {
     punching.value = false
   }
@@ -326,12 +427,17 @@ function changePage(delta) {
   loadRecords()
 }
 function stopCamera() {
+  cameraRevision++
   stream?.getTracks().forEach((track) => track.stop())
   stream = null
   cameraActive.value = false
+  cameraBusy.value = false
   if (video.value) video.value.srcObject = null
 }
 async function startCamera() {
+  if (cameraBusy.value || cameraActive.value) return
+  stopCamera()
+  const revision = cameraRevision
   cameraError.value = ''
   if (!cameraConsent.value) {
     cameraError.value = '请先勾选仅在本机预览的授权说明。'
@@ -347,16 +453,18 @@ async function startCamera() {
       video: { facingMode: 'user' },
       audio: false,
     })
-    if (disposed || view.value !== 'face' || !cameraConsent.value) {
+    if (disposed || revision !== cameraRevision || view.value !== 'face' || !cameraConsent.value) {
       media.getTracks().forEach((t) => t.stop())
       return
     }
     stream = media
     cameraActive.value = true
     await nextTick()
+    if (disposed || revision !== cameraRevision || !video.value) return
     video.value.srcObject = media
     await video.value.play()
   } catch (e) {
+    if (disposed || revision !== cameraRevision) return
     stopCamera()
     cameraError.value =
       {
@@ -365,7 +473,7 @@ async function startCamera() {
         NotReadableError: '摄像头正被其他应用占用。',
       }[e.name] || '摄像头暂不可用，请检查设备连接。'
   } finally {
-    cameraBusy.value = false
+    if (!disposed && revision === cameraRevision) cameraBusy.value = false
   }
 }
 watch(cameraConsent, (allowed) => {
@@ -373,11 +481,32 @@ watch(cameraConsent, (allowed) => {
 })
 watch(view, (v) => {
   stopCamera()
+  faceProof.value = null
+  locationRevision++
+  locating.value = false
+  location.value = null
   feedback.value = ''
   if (v === 'records') loadRecords()
 })
+function suspend() {
+  stopCamera()
+  faceProof.value = null
+  locationRevision++
+  locating.value = false
+  location.value = null
+}
+function visibility() {
+  if (document.hidden) suspend()
+}
+function online() {
+  checkReceipt()
+}
 onMounted(() => {
   load()
+  checkReceipt()
+  window.addEventListener('pagehide', suspend)
+  document.addEventListener('visibilitychange', visibility)
+  window.addEventListener('online', online)
   timer = setInterval(() => {
     now.value = new Date()
   }, 1000)
@@ -386,6 +515,10 @@ onUnmounted(() => {
   disposed = true
   clearInterval(timer)
   stopCamera()
+  locationRevision++
+  window.removeEventListener('pagehide', suspend)
+  document.removeEventListener('visibilitychange', visibility)
+  window.removeEventListener('online', online)
 })
 </script>
 
@@ -434,6 +567,22 @@ onUnmounted(() => {
     <div v-if="feedback" class="notice" role="status">
       {{ feedback }}<button class="text-button" @click="feedback = ''">收起</button>
     </div>
+    <div v-if="pendingPunch" class="notice" role="status">
+      <p>上次打卡结果待核对，已暂停新的提交。</p>
+      <p>{{ receiptMessage }}</p>
+      <button class="text-button" :disabled="receiptBusy || punching" @click="checkReceipt">
+        {{ receiptBusy ? '正在核对…' : '核对上次打卡结果' }}
+      </button>
+      <RouterLink class="text-link" to="/attendance/records">查看考勤记录</RouterLink>
+      <button
+        v-if="receiptMissing"
+        class="text-button"
+        :disabled="receiptBusy"
+        @click="prepareAgain"
+      >
+        重新准备打卡
+      </button>
+    </div>
 
     <template v-if="view === 'today'">
       <div class="b-grid">
@@ -465,7 +614,11 @@ onUnmounted(() => {
           </div>
           <label class="b-field"
             ><span>打卡类型</span
-            ><select aria-label="打卡类型" v-model="punchType" :disabled="!available || punching">
+            ><select
+              aria-label="打卡类型"
+              v-model="punchType"
+              :disabled="!available || punching || !!pendingPunch"
+            >
               <option value="IN">上班签到</option>
               <option value="OUT">下班签退</option>
             </select></label
@@ -474,13 +627,28 @@ onUnmounted(() => {
             ><span>场所挑战令牌</span
             ><textarea
               v-model="token"
-              :disabled="!available || punching"
+              :disabled="!available || punching || !!pendingPunch"
               maxlength="512"
               placeholder="粘贴管理员发放的有效场所挑战令牌"
               rows="3"
             />
           </label>
-          <QrScanner v-if="available" @scanned="token = $event" />
+          <QrScanner v-if="available && !punching && !pendingPunch" @scanned="token = $event" />
+          <FaceActions
+            v-if="faceRequired"
+            mode="verify"
+            :status="face"
+            :context="{ token: token.trim(), requestId, type: punchType }"
+            :disabled="punching || !!pendingPunch"
+            @verified="faceProof = $event"
+          />
+          <p v-if="faceRequired" class="b-small">
+            {{
+              faceProofFresh
+                ? '本次人脸凭据有效，可提交打卡'
+                : '本次打卡需要服务端人脸验证；未就绪或凭据过期时不能提交'
+            }}
+          </p>
           <button class="b-punch-button" :disabled="!canPunch" @click="punch">
             <Clock />{{ punching ? '正在提交…' : available ? '确认打卡' : '等待业务接入' }}
           </button>
@@ -526,7 +694,7 @@ onUnmounted(() => {
             </ol>
             <button
               class="button button-secondary b-full"
-              :disabled="locating || !available"
+              :disabled="locating || !available || punching || !!pendingPunch"
               @click="locate"
             >
               <Location />{{ locating ? '定位中…' : '获取当前位置' }}
@@ -778,6 +946,7 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="view === 'face'">
+      <FaceActions :status="face" @changed="load" />
       <div class="b-grid">
         <section class="b-card">
           <div class="b-card-title">
@@ -811,15 +980,19 @@ onUnmounted(() => {
               @click="startCamera"
             >
               <VideoCamera />{{ cameraBusy ? '等待设备授权…' : '开启本机预览' }}</button
-            ><button class="button button-secondary" :disabled="!cameraActive" @click="stopCamera">
-              关闭摄像头
+            ><button
+              class="button button-secondary"
+              :disabled="!cameraActive && !cameraBusy"
+              @click="stopCamera"
+            >
+              {{ cameraBusy ? '取消授权等待' : '关闭摄像头' }}
             </button>
           </div>
           <div v-if="cameraError" class="notice notice-error b-result" role="alert">
             {{ cameraError }}
           </div>
           <p class="b-small b-description">
-            切换页面、撤回勾选或退出本页面时立即释放摄像头。预览不代表人脸检测、比对或活体检测成功。
+            切换页面、切到后台、撤回勾选或退出本页面时立即释放摄像头。预览不代表人脸检测、比对或活体检测成功。
           </p>
         </section>
         <div>

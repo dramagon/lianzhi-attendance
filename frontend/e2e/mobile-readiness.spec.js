@@ -246,3 +246,152 @@ test('手机设备检查能处理真实接口、仿真定位、权限拒绝和�
   await expect(page.getByText('已连接联智服务', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+// Controlled browser media/position callbacks test lifecycle only, not a physical phone or SDK.
+async function prepareFaceCamera(page) {
+  await page.addInitScript(() => {
+    window.faceStops = 0
+    window.faceCalls = []
+    const media = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 100
+      const stream = canvas.captureStream(1)
+      for (const track of stream.getTracks()) {
+        const stop = track.stop.bind(track)
+        track.stop = () => {
+          window.faceStops++
+          stop()
+        }
+      }
+      return stream
+    }
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+      value: () =>
+        new Promise((resolve, reject) =>
+          window.faceCalls.push({
+            allow: () => resolve(media()),
+            deny: () => reject(new DOMException('denied', 'NotAllowedError')),
+          }),
+        ),
+    })
+    HTMLMediaElement.prototype.play = () => Promise.resolve()
+  })
+  await login(page)
+  await page.goto('/attendance/face')
+  await page.getByRole('checkbox', { name: /我同意仅开启本机摄像头预览/ }).check()
+}
+
+test('人脸预览取消后旧授权成功只释放旧设备，旧失败不关闭新预览', async ({ page }) => {
+  await prepareFaceCamera(page)
+  const open = page.getByRole('button', { name: '开启本机预览', exact: true })
+  await open.click()
+  await page.getByRole('button', { name: '取消授权等待', exact: true }).click()
+  await open.click()
+  await page.evaluate(() => window.faceCalls[1].allow())
+  await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
+  await page.evaluate(() => window.faceCalls[0].allow())
+  await expect.poll(() => page.evaluate(() => window.faceStops)).toBe(1)
+  await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '关闭摄像头', exact: true }).click()
+  await open.click()
+  await page.getByRole('button', { name: '取消授权等待', exact: true }).click()
+  await open.click()
+  await page.evaluate(() => window.faceCalls[3].allow())
+  await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
+  await page.evaluate(() => window.faceCalls[2].deny())
+  await page.evaluate(() => new Promise(requestAnimationFrame))
+  await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: /我同意仅开启本机摄像头预览/ }).uncheck()
+  await expect.poll(() => page.evaluate(() => window.faceStops)).toBe(3)
+})
+
+test('人脸预览切后台释放设备，晚到的播放失败不污染新预览', async ({ page }) => {
+  await prepareFaceCamera(page)
+  await page.evaluate(() => {
+    HTMLMediaElement.prototype.play = () =>
+      new Promise((resolve, reject) => {
+        window.rejectOldPlay = () => reject(new DOMException('interrupted', 'AbortError'))
+      })
+  })
+  await page.getByRole('button', { name: '开启本机预览', exact: true }).click()
+  await page.evaluate(() => window.faceCalls[0].allow())
+  await expect.poll(() => page.evaluate(() => !!window.rejectOldPlay)).toBe(true)
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    HTMLMediaElement.prototype.play = () => Promise.resolve()
+  })
+  await expect.poll(() => page.evaluate(() => window.faceStops)).toBe(1)
+  await page.getByRole('button', { name: '开启本机预览', exact: true }).click()
+  await page.evaluate(() => window.faceCalls[1].allow())
+  await page.evaluate(() => window.rejectOldPlay())
+  await expect(page.getByLabel('本机摄像头预览', { exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.getByRole('link', { name: '考勤记录', exact: true }).click()
+  await expect(page).toHaveURL(/\/attendance\/records$/)
+  await expect.poll(() => page.evaluate(() => window.faceStops)).toBe(2)
+})
+
+test('切页后的旧定位不能覆盖重新获取的位置', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.locations = []
+    navigator.geolocation.getCurrentPosition = (success) => window.locations.push(success)
+  })
+  await login(page)
+  await page.goto('/attendance')
+  await page.getByRole('button', { name: '获取当前位置', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.locations.length)).toBe(1)
+  await page.getByRole('link', { name: '考勤记录', exact: true }).click()
+  await expect(page).toHaveURL(/\/attendance\/records$/)
+  await page.getByRole('link', { name: '今日打卡', exact: true }).click()
+  await page.getByRole('button', { name: '获取当前位置', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.locations.length)).toBe(2)
+  await page.evaluate(() => {
+    window.locations[1]({
+      coords: { latitude: 31.2, longitude: 121.5, accuracy: 10 },
+      timestamp: Date.now(),
+    })
+    window.locations[0]({
+      coords: { latitude: 0, longitude: 0, accuracy: 999 },
+      timestamp: Date.now(),
+    })
+  })
+  await expect(page.getByText('精度约 10 米 · 仅在本次打卡发送', { exact: true })).toBeVisible()
+})
+
+test('未查到待确认请求时不自动重发，核对后重新准备会清除旧输入', async ({ page, context }) => {
+  await login(page)
+  const user = (await (await page.request.get('/api/auth/session')).json()).data
+  await page.evaluate((id) => {
+    sessionStorage.setItem(
+      `lianzhi.b.pending-punch.${id}`,
+      JSON.stringify({ requestId: '00000000-0000-0000-0000-000000000001', type: 'IN' }),
+    )
+  }, user.id)
+  let posts = 0
+  let receipts = 0
+  page.on('request', (request) => {
+    if (request.url().includes('/attendance/me/punches/requests/')) receipts++
+  })
+  await page.route('**/api/attendance/me/punches', (route) => {
+    posts++
+    return route.abort()
+  })
+  await page.goto('/attendance')
+  await expect(page.getByText(/暂未查到本次记录/)).toBeVisible()
+  expect(receipts).toBe(1)
+  await context.setOffline(true)
+  await context.setOffline(false)
+  await expect.poll(() => receipts).toBe(2)
+  await expect(page.getByText(/暂未查到本次记录/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '确认打卡', exact: true })).toBeDisabled()
+  await expect(page.getByLabel('场所挑战令牌', { exact: true })).toBeDisabled()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '重新准备打卡', exact: true }).click()
+  await expect(page.getByLabel('场所挑战令牌', { exact: true })).toBeEnabled()
+  await expect(page.getByLabel('场所挑战令牌', { exact: true })).toHaveValue('')
+  await expect(page.getByRole('button', { name: '确认打卡', exact: true })).toBeDisabled()
+  expect(posts).toBe(0)
+})

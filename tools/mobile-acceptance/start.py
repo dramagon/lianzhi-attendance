@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -136,8 +137,11 @@ https://%s:%s {
         result=json.loads(request('/api/attendance/rules/preview',json.dumps(preview).encode(),{'Content-Type':'application/json',csrf['headerName']:csrf['token']}))
         if result['data']['workMinutes'] != 468:
             raise RuntimeError('HTTPS rule functional check failed')
+        receipt=json.loads(request('/api/attendance/me/punches/requests/'+str(uuid.uuid4())))
+        if receipt['data'] != {'found':False,'event':None}:
+            raise RuntimeError('HTTPS authenticated read-only punch receipt check failed')
         report={'trusted_tls':True,'hostname_verified':True,'secure_cookie_login':True,'csrf_rule_preview':True,
-                'demo':True,'device_route':True,'ca_certificate':str(ca)}
+                'punch_receipt_query':True,'demo':True,'device_route':True,'ca_certificate':str(ca)}
         (run/'readiness.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
         print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)
         if args.check:

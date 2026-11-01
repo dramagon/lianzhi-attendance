@@ -1,5 +1,7 @@
 # 接口与权限约定
 
+C第五阶段新增授权汇总 `GET /api/assistant/attendance/summary`，以及均需CSRF的申请预览 `POST /api/assistant/approval-drafts`、明确确认提交 `POST /api/assistant/approval-drafts/confirm`、取消 `POST /api/assistant/approval-drafts/{id}/cancel`。预览不创建申请；确认后仍通过A正常服务鉴权与幂等。详见[第五阶段契约](modules/c-day5-actions.md)。
+
 三人协作API分别记录在 [A：组织、员工与场所（A1已接通）](modules/a-api.md)、[B：考勤与人脸](modules/b-api.md)、[C：报表与AI](modules/c-api.md)。跨模块约定见 [公共约定](team/contracts.md)。下文保留基础接口。
 
 A2.2已接通 `/api/approvals` 的真实提交、分页记录、详情、审批/拒绝/撤回与审计，审核和B考勤调整同事务；状态和内容校验接口保留。所有写接口需CSRF，管理访问按公司范围，详见[A模块文档](modules/a-api.md)。
@@ -55,3 +57,7 @@ A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过�
 ## B模块
 
 考勤接口、迁移、排班与联调边界见[B接口文档](modules/b-api.md)。
+
+2026-11-01新增`GET /api/attendance/me/punches/requests/{requestId}`，只读查询当前登录者的打卡回执，用于网络恢复后核实已落库结果，不自动重发打卡。返回`found/event`及暂未查到的处理边界见B接口文档。
+
+同日后续新增本人`POST/PUT/DELETE /api/face/enrollment`、`POST /api/face/challenges`和multipart验证流程，打卡支持`faceVerificationId`。业务与安全流程已有实现，实际虹软适配器、授权及正式V4/V5尚缺，默认关闭；完整字段及启用条件见B接口文档与[人脸接入说明](modules/b-face-integration.md)。

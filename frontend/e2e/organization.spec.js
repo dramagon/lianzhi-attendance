@@ -108,7 +108,7 @@ test('管理员从系统账号分配人事账号，调整角色、重设密码�
   row = page.getByRole('row').filter({ hasText: username })
   await expect(row.locator('.tag')).toHaveText('员工')
 
-  const employeeContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' })
+  const employeeContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   try {
     const employeePage = await employeeContext.newPage()
     await employeePage.goto('/login')
