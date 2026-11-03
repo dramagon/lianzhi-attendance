@@ -99,3 +99,11 @@ A继续推进真实V4审批；C的生产部署仍由C负责，B工具只用于�
 验证通过：最终后端135项、前端构建、全新内存库完整浏览器33项；MySQL考勤/审批44项、重启1项、人脸业务14项；HTTPS自检含V5存储状态。人脸14项继续使用明确的测试SDK替身。精确范围及产物见[本轮验证](../verification/member-b-v5-integration-2026-11-03.md)。
 
 下一步不再等待A审批表；剩余是实际虹软Windows SDK适配/授权、真实手机现场验收、按课程确定uni-app需求及后续A/C整合。未配置SDK时storageAvailable=true、识别能力及available仍false；不能把正式建表或测试替身当作识别完成。main未合并。
+
+## 2026-11-03后续：目标改为课堂展示能跑通
+
+用户明确优先展示。已新增独立课堂展示包：一个app.jar同时服务前后端，只需Java17+，不需Node/MySQL/Python/SDK；Windows双击start-demo.cmd，Linux/macOS运行sh start-demo.sh。使用自己的H2、合成员工和明确标注的演示定位，二维码真实签发及解码、打卡/审批/考勤回写走既有服务，未生成伪装的SDK成功。
+
+classroom+demo同时启用才开放展示台状态与同源静态服务。正常应用不出现课堂状态接口，所有业务API仍鉴权、CSRF和按角色校验。展示链路已在实际生成包的18080端口完整跑通，普通环境138项后端、34项完整浏览器及构建通过。细节见[验证记录](../verification/member-b-classroom-2026-11-03.md)。
+
+源码构建命令`python scripts/build-classroom-demo.py`，二进制输出artifacts/classroom-demo.zip，不提交Git，压缩包不包含运行数据。Windows脚本未现场实测，且云端获取官方Windows JRE被代理403阻断，故现场仍需Java17+。展示步骤和边界见[运行说明](../../tools/classroom/README.md)。真实SDK/手机验收仍未完成，main不自动合并。

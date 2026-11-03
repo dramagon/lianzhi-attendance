@@ -14,6 +14,8 @@
 
 ## 接口与权限
 
+课堂展示包额外提供`GET /api/attendance/presentation`，仅`classroom` profile和`lianzhi.demo=true`同时启用时存在，仍要求登录；返回classroom、instance、message。正常应用不存在该接口。展示台准备档案、签发二维码、打卡与审批全部调用现有受认证/CSRF/角色保护的业务API，没有额外绕过权限的写接口。使用说明见[课堂展示包](../../tools/classroom/README.md)。
+
 沿用Session、CSRF与ApiResponse。POST需先GET `/api/auth/csrf`，使用返回的头名/token。本人ID只取认证上下文；管理查询和排班复用A的DataScope、EmployeeService和WorkplaceService，HR仅本公司。日期范围from/to最多94天。
 
 | 方法/路径（前缀/api） | 行为 |

@@ -31,6 +31,8 @@
 
 ## Windows 快速启动
 
+只用于课堂展示时，可使用[前后端合一展示包](tools/classroom/README.md)：运行时只需Java17或以上，不需要Node/MySQL/人脸SDK；合成员工与演示定位有明确标注，二维码、打卡、申请审批和480分钟请假回写调用真实服务。
+
 前置安装：**JDK 17、Node.js 22 LTS、Git**。首次运行需要联网下载依赖，Maven 由项目内的 Wrapper 自动准备。
 
 ```powershell

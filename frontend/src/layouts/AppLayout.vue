@@ -42,7 +42,7 @@ const navigation = [
   { path: '/roadmap', name: '建设进度', icon: List },
 ]
 const upcoming = [
-  { name: '考勤打卡', icon: Calendar },
+  { name: '统计报表', icon: List },
   { name: 'AI 业务助手', icon: ChatDotRound },
 ]
 watch(

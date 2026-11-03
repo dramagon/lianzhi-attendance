@@ -52,6 +52,8 @@ A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过�
 
 ## B模块
 
+2026-11-03新增独立课堂展示包：仅显式启用classroom+demo时提供已认证的`GET /api/attendance/presentation`状态。普通应用不启用；展示写入继续使用原有受权限和CSRF保护的API，详见[展示说明](../tools/classroom/README.md)。
+
 考勤接口、迁移、排班与联调边界见[B接口文档](modules/b-api.md)。
 
 2026-11-01新增`GET /api/attendance/me/punches/requests/{requestId}`，只读查询当前登录者的打卡回执，用于网络恢复后核实已落库结果，不自动重发打卡。返回`found/event`及暂未查到的处理边界见B接口文档。
