@@ -32,7 +32,12 @@ def main():
         for asset in dist.rglob('*'):
             if asset.is_file(): target.write(asset, 'BOOT-INF/classes/static/'+asset.relative_to(dist).as_posix())
     for filename in ['start-demo.cmd','start-demo.ps1','start-demo.sh']:
-        shutil.copy2(ROOT/'tools/classroom'/filename, output/filename)
+        if filename.endswith(('.cmd','.ps1')):
+            # Packaging runs on Linux too; Windows launchers must keep Windows line endings.
+            text=(ROOT/'tools/classroom'/filename).read_text(encoding='utf-8').replace('\r\n','\n')
+            (output/filename).write_bytes(text.replace('\n','\r\n').encode('utf-8'))
+        else:
+            shutil.copy2(ROOT/'tools/classroom'/filename, output/filename)
     (output/'start-demo.sh').chmod(0o755)
     (output/'README.txt').write_text('''联智课堂展示包（合成测试数据，不作真实员工考勤）
 
