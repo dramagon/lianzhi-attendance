@@ -2,7 +2,7 @@
 
 三人协作API分别记录在 [A：组织、员工与场所（A1已接通）](modules/a-api.md)、[B：考勤与人脸](modules/b-api.md)、[C：报表与AI](modules/c-api.md)。跨模块约定见 [公共约定](team/contracts.md)。下文保留基础接口。
 
-A2.1新增 `/api/approvals/status` 与需CSRF的 `/api/approvals/preview`，仅提供能力状态和本人内容校验。创建/记录查询当前明确503，管理队列另检查ADMIN/HR；真实存储、审批和考勤回写待B依赖及V4整合后开放，详见A模块文档。
+A2.2已接通 `/api/approvals` 的真实提交、分页记录、详情、审批/拒绝/撤回与审计，审核和B考勤调整同事务；状态和内容校验接口保留。所有写接口需CSRF，管理访问按公司范围，详见[A模块文档](modules/a-api.md)。
 
 浏览器通过同源 `/api` 访问。成功响应格式：`{"code":"OK","message":"操作成功","data":...}`。认证失败为 HTTP 401；权限或 CSRF 校验失败为 HTTP 403；错误响应的 `data` 为 null。
 
@@ -48,7 +48,7 @@ UserView新增可空 `avatarUrl`；所有角色可在个人信息上传/移除�
 
 ## 后续扩展边界
 
-A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过迁移及集成验证；外部地图仍待独立验证。B负责考勤规则和打卡、独立人脸识别适配层；A2审批在V3和B的调整服务公布后继续。真实密钥和人脸数据均不写入仓库。
+A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过迁移及集成验证；外部地图仍待独立验证。B负责考勤规则和打卡、独立人脸识别适配层；A2审批已在B正式V3之后接通V4和调整服务。真实密钥和人脸数据均不写入仓库。
 
 ## B模块
 
@@ -56,4 +56,4 @@ A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过�
 
 2026-11-01新增`GET /api/attendance/me/punches/requests/{requestId}`，只读查询当前登录者的打卡回执，用于网络恢复后核实已落库结果，不自动重发打卡。返回`found/event`及暂未查到的处理边界见B接口文档。
 
-同日后续新增本人`POST/PUT/DELETE /api/face/enrollment`、`POST /api/face/challenges`和multipart验证流程，打卡支持`faceVerificationId`。业务与安全流程已有实现，实际虹软适配器、授权及正式V4/V5尚缺，默认关闭；完整字段及启用条件见B接口文档与[人脸接入说明](modules/b-face-integration.md)。
+同日后续新增本人`POST/PUT/DELETE /api/face/enrollment`、`POST /api/face/challenges`和multipart验证流程，打卡支持`faceVerificationId`。业务与安全流程已有实现，实际虹软适配器与授权尚缺，处理默认关闭（2026-11-03已整合正式V4/V4.1/V5存储）；完整字段及启用条件见B接口文档与[人脸接入说明](modules/b-face-integration.md)。

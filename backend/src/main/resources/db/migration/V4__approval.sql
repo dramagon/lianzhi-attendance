@@ -1,5 +1,3 @@
--- CANDIDATE ONLY. Not in Flyway locations. Requires reviewed V3, attendance adjustment
--- implementation, transactional application service and storage integration tests.
 CREATE TABLE approval_request (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     applicant_id BIGINT NOT NULL,
@@ -8,14 +6,14 @@ CREATE TABLE approval_request (
     request_key VARCHAR(36) NOT NULL,
     request_type VARCHAR(20) NOT NULL,
     state VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    start_at TIMESTAMP NOT NULL,
-    end_at TIMESTAMP NULL,
+    start_at DATETIME NOT NULL,
+    end_at DATETIME NULL,
     punch_type VARCHAR(3),
     workplace_id BIGINT,
     reason VARCHAR(500) NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_approval_applicant FOREIGN KEY (applicant_id) REFERENCES sys_user(id),
     CONSTRAINT fk_approval_company FOREIGN KEY (company_id) REFERENCES org_company(id),
     CONSTRAINT fk_approval_department FOREIGN KEY (department_id) REFERENCES sys_department(id),
@@ -34,7 +32,7 @@ CREATE TABLE approval_transition (
     to_state VARCHAR(20) NOT NULL,
     actor_id BIGINT NOT NULL,
     reason VARCHAR(500) NOT NULL,
-    occurred_at TIMESTAMP NOT NULL,
+    occurred_at DATETIME NOT NULL,
     version BIGINT NOT NULL,
     CONSTRAINT fk_transition_approval FOREIGN KEY (approval_id) REFERENCES approval_request(id),
     CONSTRAINT fk_transition_actor FOREIGN KEY (actor_id) REFERENCES sys_user(id),

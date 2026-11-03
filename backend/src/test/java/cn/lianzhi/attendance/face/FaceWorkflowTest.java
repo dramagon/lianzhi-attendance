@@ -30,12 +30,6 @@ import static org.assertj.core.api.Assertions.*;
 @org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @WithMockUser(username="employee",roles="EMPLOYEE")
 class FaceWorkflowTest {
-    @org.springframework.test.context.DynamicPropertySource
-    static void candidateMigrations(org.springframework.test.context.DynamicPropertyRegistry registry) {
-        var cwd=java.nio.file.Path.of("").toAbsolutePath();
-        var root=java.nio.file.Files.isDirectory(cwd.resolve("backend"))?cwd:cwd.getParent();
-        registry.add("spring.flyway.locations",()->"classpath:db/migration,filesystem:"+root.resolve("docs/modules/a-pending-migrations")+",filesystem:"+root.resolve("docs/modules/b-pending-migrations"));
-    }
     @TestConfiguration static class SimulatorConfig { @Bean Simulator simulator(){return new Simulator();} }
     static class Simulator implements FaceProvider {
         int faces=1; boolean live=true,quality=true; double score=0.95;

@@ -51,6 +51,8 @@ test('真实未配置服务关闭登记采集，不把本机预览当识别', as
   await expect(page.getByRole('button', { name: '删除本人特征', exact: true })).toBeDisabled()
   const status = (await (await page.request.get('/api/face/status')).json()).data
   expect(status.available).toBe(false)
+  expect(status.storageAvailable).toBe(true)
+  expect([status.detection, status.comparison, status.liveness]).toEqual([false, false, false])
   expect(status.enrolled).toBe(false)
   const csrf = (await (await page.request.get('/api/auth/csrf')).json()).data
   const response = await page.request.post('/api/face/enrollment', {

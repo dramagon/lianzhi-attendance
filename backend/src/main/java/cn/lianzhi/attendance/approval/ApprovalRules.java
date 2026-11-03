@@ -21,6 +21,7 @@ public final class ApprovalRules {
     public static Draft validate(Draft input) {
         Inputs.required(input,"申请内容"); Inputs.required(input.type(),"申请类型"); Inputs.required(input.startAt(),"申请时间");
         String reason=Inputs.text(input.reason(),500,"申请事由");
+        if(input.startAt().getYear()<1000 || input.startAt().getYear()>9999 || (input.endAt()!=null && (input.endAt().getYear()<1000 || input.endAt().getYear()>9999)))throw BusinessException.invalid("申请年份须为1000至9999");
         if (input.startAt().getNano()!=0 || (input.endAt()!=null && input.endAt().getNano()!=0)) throw BusinessException.invalid("申请时间最多精确到秒");
         if (input.type()==Type.MISSING_PUNCH) {
             Inputs.required(input.punchType(),"补卡方向");

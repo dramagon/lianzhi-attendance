@@ -52,9 +52,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-mysql-backen
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-mysql.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
 ```
 
-测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API集成使用真实MySQL；审批纯策略不连接数据库，隔离迁移/并发及候选DDL夹具使用H2，分类结果见验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API及ApprovalWorkflowTest使用真实MySQL，后者无外层测试事务、使用独立连接验证提交/回滚/并发；纯策略无数据库，显式隔离迁移/并发/B工作流夹具仍为H2，分类见本轮验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
 
-A2候选V4仅位于docs，不随启动自动迁移。B的V3及调整服务尚未接通时，申请校验可用，但创建/查询申请返回503；不能把候选SQL复制到真实库以绕过未完成的业务接入。
+A2.2已接入B正式V3与调整服务，启动按V1→V2→V3→V4→V4.1迁移。V4是申请与审计，V4.1修复原始打卡时间的微秒精度；不占用B的人脸V5。升级正式库前先使用mysqldump备份，不手工改已发布V1～V3、不启用out-of-order、不删原始事件。旧的docs候选V4已移除。全部审批写入与B使用同数据源READ_COMMITTED事务；已生效申请暂不支持撤销。
 
 ### 手动配置
 
