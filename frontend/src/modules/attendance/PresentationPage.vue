@@ -14,7 +14,27 @@ const info = ref(null),
   qrImage = ref(''),
   records = ref([]),
   days = ref([]),
-  approval = ref(null)
+  approval = ref(null),
+  automatic = ref(false),
+  stopRequested = ref(false),
+  currentStep = ref(''),
+  storageNotice = ref(''),
+  scenarioReady = ref(false)
+const savedKey = 'lianzhi.presentation.v2'
+const scenarioFields = [
+  'date',
+  'tomorrow',
+  'username',
+  'userId',
+  'workplaceId',
+  'approvalId',
+  'approvalKey',
+  'inRequest',
+  'outRequest',
+]
+function scenarioData(value) {
+  return Object.fromEntries(scenarioFields.map((key) => [key, value[key]]))
+}
 const password = 'Lianzhi@2026' // Public synthetic identities, only in the explicitly enabled isolated classroom app.
 const demoLocation = { latitude: 31.2, longitude: 121.5, coordinateSystem: 'WGS84' }
 let disposed = false
@@ -24,52 +44,136 @@ const leaveDay = computed(() =>
   days.value.find((item) => item.businessDate === scenario.value?.tomorrow),
 )
 const canRun = computed(() => info.value?.classroom === true && !busy.value)
+const canClick = computed(() => canRun.value && !automatic.value)
+const milestones = computed(() => [
+  { label: '档案与排班', done: scenarioReady.value },
+  { label: '上班记录', done: signedIn.value },
+  { label: '下班记录', done: signedOut.value },
+  { label: '员工申请', done: !!approval.value?.entry?.request?.id },
+  {
+    label: '审批回写',
+    done:
+      approval.value?.entry?.request?.state === 'APPROVED' &&
+      leaveDay.value?.leaveMinutes === 480 &&
+      leaveDay.value.approvalIds.includes(scenario.value?.approvalId),
+  },
+])
 function nextDate(date) {
   const day = new Date(`${date}T12:00:00+08:00`)
   day.setUTCDate(day.getUTCDate() + 1)
   return businessDate(day)
 }
 function remember() {
-  sessionStorage.setItem(
-    `lianzhi.presentation.${info.value.instance}`,
-    JSON.stringify(scenario.value),
+  const value = JSON.stringify(scenarioData(scenario.value))
+  try {
+    localStorage.setItem(savedKey, value)
+    storageNotice.value = ''
+    return
+  } catch {
+    /* Try tab storage next. */
+  }
+  try {
+    sessionStorage.setItem(savedKey, value)
+  } catch {
+    /* Current page still works without storage. */
+  }
+  storageNotice.value = '浏览器未允许长期保存进度，本页仍可演示；关闭浏览器后可能需要重新准备。'
+}
+function savedScenario() {
+  for (const storage of ['localStorage', 'sessionStorage']) {
+    try {
+      const saved = JSON.parse(window[storage].getItem(savedKey))
+      if (saved) return saved
+    } catch {
+      /* Disabled or malformed browser storage must not disable the app. */
+    }
+  }
+  // Migrate the previous version's current-tab progress when available.
+  try {
+    return JSON.parse(sessionStorage.getItem(`lianzhi.presentation.${info.value.instance}`))
+  } catch {
+    return null
+  }
+}
+function validScenario(value) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return (
+    value &&
+    /^show[0-9]{13}$/.test(value.username) &&
+    Number.isSafeInteger(value.userId) &&
+    value.userId > 0 &&
+    Number.isSafeInteger(value.workplaceId) &&
+    value.workplaceId > 0 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value.date) &&
+    Number.isFinite(Date.parse(`${value.date}T12:00:00+08:00`)) &&
+    value.tomorrow === nextDate(value.date) &&
+    (value.approvalId === null ||
+      (Number.isSafeInteger(value.approvalId) && value.approvalId > 0)) &&
+    [value.approvalKey, value.inRequest, value.outRequest].every((key) => uuid.test(key))
   )
+}
+function clearResults() {
+  records.value = []
+  days.value = []
+  approval.value = null
+  qrImage.value = ''
+  scenarioReady.value = false
 }
 async function asUser(username) {
   if (disposed) throw new Error('已退出演示台，请重新进入后核对记录')
   if (auth.user?.username !== username) await auth.signIn(username, password)
 }
 async function action(task) {
-  if (!canRun.value) return
+  if (!canRun.value || disposed) return false
   busy.value = true
   error.value = message.value = ''
   try {
     await task()
+    return !disposed
   } catch (e) {
     if (!disposed) error.value = e.message
+    return false
   } finally {
     if (!disposed) busy.value = false
   }
 }
 async function refresh() {
   if (!scenario.value) return
-  await asUser(scenario.value.username)
+  const context = scenario.value
+  scenarioReady.value = false
+  await asUser(context.username)
+  const identity = await http.get('/employees/me')
+  if (
+    identity.userId !== context.userId ||
+    identity.username !== context.username ||
+    identity.employeeNo !== `SHOW${context.username.slice(4)}`
+  )
+    throw new Error('保存进度与当前演示身份不匹配，请重新准备；没有修改已有记录。')
+  const workplaces = await http.get('/attendance/me/workplaces')
+  if (!workplaces.some((place) => place.id === context.workplaceId))
+    throw new Error('保存的演示场所已不可用，请重新准备；历史记录仍保留。')
   const data = await Promise.all([
     http.get('/attendance/me/records', {
-      params: { from: scenario.value.date, to: scenario.value.date, page: 1, size: 20 },
+      params: { from: context.date, to: context.date, page: 1, size: 20 },
     }),
     http.get('/attendance/me/days', {
-      params: { from: scenario.value.date, to: scenario.value.tomorrow },
+      params: { from: context.date, to: context.tomorrow },
     }),
+    context.approvalId ? http.get(`/approvals/${context.approvalId}`) : Promise.resolve(null),
   ])
-  if (disposed) return
+  if (disposed || context !== scenario.value) return
+  const owner = data[2]?.entry?.request
+  if (owner && owner.applicantId !== context.userId)
+    throw new Error('审批来源与本轮员工不匹配，请重新准备。')
   records.value = data[0].items
   days.value = data[1]
-  if (scenario.value.approvalId)
-    approval.value = await http.get(`/approvals/${scenario.value.approvalId}`)
+  approval.value = data[2]
+  scenarioReady.value = true
 }
 async function prepare() {
-  await action(async () => {
+  return action(async () => {
+    clearResults()
+    scenario.value = null
     await asUser('admin')
     const employee = await http.get('/employees/me'),
       status = await http.get('/attendance/status')
@@ -88,7 +192,13 @@ async function prepare() {
     const places = await http.get('/workplaces', {
       params: { companyId: employee.companyId, page: 1, size: 100 },
     })
-    const place = places.items.find((item) => item.name === name)
+    let place = places.items.find((item) => item.name === name)
+    for (let page = Math.ceil(places.total / 100); !place && page > 1; page--) {
+      const more = await http.get('/workplaces', {
+        params: { companyId: employee.companyId, page, size: 100 },
+      })
+      place = more.items.find((item) => item.name === name)
+    }
     if (!place) throw new Error('演示场所未找到，请重新准备')
     const person = await write('post', '/employees', {
       username: `show${stamp}`,
@@ -141,7 +251,8 @@ async function prepare() {
   })
 }
 async function punch(type) {
-  await action(async () => {
+  return action(async () => {
+    if (!scenarioReady.value) throw new Error('请先恢复进度或重新读取真实结果')
     const context = scenario.value
     await asUser('admin')
     const challenge = await write(
@@ -176,7 +287,8 @@ async function punch(type) {
   })
 }
 async function requestLeave() {
-  await action(async () => {
+  return action(async () => {
+    if (!scenarioReady.value) throw new Error('请先恢复进度或重新读取真实结果')
     const context = scenario.value
     await asUser(context.username)
     const entry = await write('post', '/approvals', {
@@ -197,7 +309,8 @@ async function requestLeave() {
   })
 }
 async function approve() {
-  await action(async () => {
+  return action(async () => {
+    if (!scenarioReady.value) throw new Error('请先恢复进度或重新读取真实结果')
     await asUser('admin')
     const detail = await http.get(`/approvals/${scenario.value.approvalId}`)
     if (detail.entry.request.state === 'PENDING')
@@ -210,20 +323,82 @@ async function approve() {
     message.value = '已读取服务端审批及日考勤结果，审批来源可追溯。'
   })
 }
+async function restore() {
+  return action(async () => {
+    const saved = savedScenario()
+    if (!saved) {
+      message.value = '没有保存的演示进度，可以准备新一轮展示。'
+      return
+    }
+    if (!validScenario(saved)) throw new Error('保存进度格式无效，请重新准备；不会删除后台记录。')
+    const status = await http.get('/attendance/status')
+    if (saved.date !== businessDate(new Date(status.serverTime))) {
+      message.value = '上次演示不在今天，历史记录仍保留；请准备今天的新一轮展示。'
+      return
+    }
+    clearResults()
+    scenario.value = scenarioData(saved)
+    if (!(await actionRestore())) return
+    remember()
+    message.value = '已从后台核对并恢复上次演示，未重新提交打卡或申请。'
+  })
+}
+async function actionRestore() {
+  try {
+    await refresh()
+    return true
+  } catch (e) {
+    clearResults()
+    if ([401, 403, 404].includes(e.response?.status)) {
+      scenario.value = null
+      throw new Error('上次进度在当前演示库中不可用，请重新准备；后台历史未被删除。')
+    }
+    throw e
+  }
+}
+async function playAll() {
+  if (!canClick.value) return
+  automatic.value = true
+  stopRequested.value = false
+  const tasks = [
+    ['准备档案与排班', prepare],
+    ['识别二维码并上班', () => punch('IN')],
+    ['识别二维码并下班', () => punch('OUT')],
+    ['员工提交请假', requestLeave],
+    ['管理员审批及回写', approve],
+  ]
+  try {
+    for (const [label, task] of tasks) {
+      if (disposed || stopRequested.value) break
+      currentStep.value = label
+      if (!(await task())) {
+        stopRequested.value = true
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 800))
+    }
+    if (!disposed) {
+      currentStep.value = ''
+      if (stopRequested.value)
+        message.value = '自动演示已暂停，已完成的记录保留。请核对后台结果后继续。'
+      else if (milestones.value.every((step) => step.done))
+        message.value = '完整演示已完成：两条打卡记录、审批通过及480分钟请假均已从后台核对。'
+    }
+  } finally {
+    if (!disposed) automatic.value = false
+  }
+}
 onMounted(async () => {
   try {
     info.value = await http.get('/attendance/presentation')
-    const saved = JSON.parse(sessionStorage.getItem(`lianzhi.presentation.${info.value.instance}`))
-    if (saved?.username?.startsWith('show') && saved.date === businessDate()) {
-      scenario.value = saved
-      await action(refresh)
-    }
+    await restore()
   } catch {
     error.value = '此页面只在独立课堂展示包中开放。请运行展示包的启动脚本，再以演示管理员登录。'
   }
 })
 onUnmounted(() => {
   disposed = true
+  stopRequested.value = true
 })
 </script>
 <template>
@@ -242,33 +417,58 @@ onUnmounted(() => {
     </div>
     <div v-if="error" class="notice notice-error" role="alert">{{ error }}</div>
     <div v-if="message" class="notice" role="status">{{ message }}</div>
+    <div v-if="storageNotice" class="notice" role="note">{{ storageNotice }}</div>
     <div class="panel controls">
       <h2>展示步骤</h2>
+      <div class="steps">
+        <button class="button button-primary" :disabled="!canClick" @click="playAll">
+          一键完整演示
+        </button>
+        <button
+          v-if="automatic"
+          class="button button-secondary"
+          :disabled="stopRequested"
+          @click="stopRequested = true"
+        >
+          {{ stopRequested ? '等待当前操作结束…' : '暂停自动演示' }}
+        </button>
+        <button class="button button-secondary" :disabled="!canClick" @click="restore">
+          恢复上次进度
+        </button>
+      </div>
+      <p v-if="automatic">
+        正在演示：{{ currentStep }}。暂停将在当前操作完成后生效，已落库记录会保留。
+      </p>
+      <ol class="milestones" aria-label="真实结果进度">
+        <li v-for="step in milestones" :key="step.label" :class="{ done: step.done }">
+          {{ step.done ? '已核对' : '待完成' }} · {{ step.label }}
+        </li>
+      </ol>
       <p>
         当前身份：{{ auth.user?.displayName }} ·
         {{ auth.user?.roleName }}。操作会在合成员工与演示管理员间切换，后端仍独立校验权限。
       </p>
       <div class="steps">
-        <button class="button button-primary" :disabled="!canRun" @click="prepare">
+        <button class="button button-primary" :disabled="!canClick" @click="prepare">
           {{ busy ? '处理中…' : scenario ? '重新准备新一轮展示' : '1. 准备演示数据' }}
         </button>
         <button
           class="button button-secondary"
-          :disabled="!canRun || !scenario || signedIn"
+          :disabled="!canClick || !scenarioReady || signedIn"
           @click="punch('IN')"
         >
           2. 二维码识别并上班
         </button>
         <button
           class="button button-secondary"
-          :disabled="!canRun || !signedIn || signedOut"
+          :disabled="!canClick || !scenarioReady || !signedIn || signedOut"
           @click="punch('OUT')"
         >
           3. 二维码识别并下班
         </button>
         <button
           class="button button-secondary"
-          :disabled="!canRun || !signedOut || !!scenario?.approvalId"
+          :disabled="!canClick || !scenarioReady || !signedOut || !!scenario?.approvalId"
           @click="requestLeave"
         >
           4. 员工提交请假
@@ -276,7 +476,10 @@ onUnmounted(() => {
         <button
           class="button button-secondary"
           :disabled="
-            !canRun || !scenario?.approvalId || approval?.entry?.request?.state === 'APPROVED'
+            !canClick ||
+            !scenarioReady ||
+            !scenario?.approvalId ||
+            approval?.entry?.request?.state === 'APPROVED'
           "
           @click="approve"
         >
@@ -284,7 +487,7 @@ onUnmounted(() => {
         </button>
         <button
           class="button button-secondary"
-          :disabled="!canRun || !scenario"
+          :disabled="!canClick || !scenario"
           @click="action(refresh)"
         >
           重新读取真实结果
@@ -357,6 +560,24 @@ p {
   flex-wrap: wrap;
   gap: 12px;
   margin: 20px 0;
+}
+.milestones {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.milestones li {
+  font-size: 12px;
+  color: #72849e;
+  background: #f3f6fa;
+  padding: 8px 10px;
+  border-radius: 7px;
+}
+.milestones .done {
+  color: #16744a;
+  background: #eaf8f0;
 }
 .grid {
   display: grid;
