@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http, { write } from '../../api'
 import { useAuthStore } from '../../stores/auth'
@@ -41,6 +41,19 @@ const dialogTitle = computed(() =>
     : `${editingId.value ? '编辑' : '新增'}${tabs[tab.value]}`,
 )
 const form = reactive({})
+const locating = ref(false)
+const locationPreview = ref(null)
+let locationSequence = 0
+let editSequence = 0
+let alive = true
+function discardLocation() {
+  locationSequence++
+  locating.value = false
+  locationPreview.value = null
+}
+watch(() => [form.latitude, form.longitude, form.coordinateSystem], discardLocation, {
+  flush: 'sync',
+})
 const formDepartments = computed(() =>
   departments.value.filter((d) => d.companyId === form.companyId && d.enabled),
 )
@@ -69,6 +82,7 @@ async function load() {
   const sequence = ++loadSequence
   busy.value = true
   error.value = ''
+  result.value = { items: [], total: 0 }
   try {
     const data = await http.get(paths[tab.value], {
       params: {
@@ -105,6 +119,8 @@ function changePage(delta) {
   load()
 }
 watch([tab, companyId], () => {
+  editSequence++
+  discardLocation()
   page.value = 1
   success.value = ''
   load()
@@ -113,6 +129,8 @@ function companyName(id) {
   return companies.value.find((c) => c.id === id)?.name || '暂未分配'
 }
 async function edit(row) {
+  const current = ++editSequence
+  discardLocation()
   formError.value = ''
   editingId.value = row?.userId || row?.id || null
   for (const key of Object.keys(form)) delete form[key]
@@ -138,13 +156,16 @@ async function edit(row) {
   )
   if (tab.value === 'employees' && row) {
     try {
-      form.workplaceIds = (await http.get(`/employees/${row.userId}/workplaces`)).map((p) => p.id)
+      const bindings = await http.get(`/employees/${row.userId}/workplaces`)
+      if (!alive || current !== editSequence) return
+      form.workplaceIds = bindings.map((p) => p.id)
     } catch (e) {
-      error.value = e.message
+      if (alive && current === editSequence) error.value = e.message
       return
     }
   }
   await nextTick()
+  if (!alive || current !== editSequence) return
   dialog.value.showModal()
   dialogVisible.value = true
 }
@@ -153,6 +174,8 @@ function changeCompany() {
   form.workplaceIds = []
 }
 function dialogClosed() {
+  editSequence++
+  discardLocation()
   dialogVisible.value = false
   if (accountFlow.value) router.replace('/accounts')
 }
@@ -200,25 +223,62 @@ async function save() {
   }
 }
 function locate() {
+  discardLocation()
+  formError.value = ''
   if (!navigator.geolocation) {
     formError.value = '当前浏览器不支持定位，请手动录入坐标'
     return
   }
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      Object.assign(form, {
-        latitude: Number(position.coords.latitude.toFixed(7)),
-        longitude: Number(position.coords.longitude.toFixed(7)),
-        coordinateSystem: 'WGS84',
-      })
-      formError.value = `已采集设备坐标（WGS84），精度约${Math.round(position.coords.accuracy)}米，请核对位置后保存。`
-    },
-    () => {
+  const current = locationSequence
+  locating.value = true
+  const isCurrent = () => alive && dialogVisible.value && current === locationSequence
+  try {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (!isCurrent()) return
+        locating.value = false
+        const { latitude, longitude, accuracy } = position.coords
+        if (
+          ![latitude, longitude, accuracy].every(Number.isFinite) ||
+          Math.abs(latitude) > 90 ||
+          Math.abs(longitude) > 180 ||
+          accuracy <= 0
+        ) {
+          formError.value = '设备返回的位置无效，请重新采集或手动录入'
+          return
+        }
+        locationPreview.value = {
+          latitude: Number(latitude.toFixed(7)),
+          longitude: Number(longitude.toFixed(7)),
+          accuracy,
+        }
+      },
+      () => {
+        if (!isCurrent()) return
+        locating.value = false
+        formError.value = '定位失败，请检查浏览器授权或手动录入坐标'
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    )
+  } catch {
+    if (isCurrent()) {
+      locating.value = false
       formError.value = '定位失败，请检查浏览器授权或手动录入坐标'
-    },
-    { enableHighAccuracy: true, timeout: 15000 },
-  )
+    }
+  }
 }
+function useLocation() {
+  if (!locationPreview.value) return
+  const { latitude, longitude } = locationPreview.value
+  Object.assign(form, { latitude, longitude, coordinateSystem: 'WGS84' })
+  discardLocation()
+}
+onBeforeUnmount(() => {
+  alive = false
+  loadSequence++
+  editSequence++
+  discardLocation()
+})
 onMounted(async () => {
   await refresh()
   if (!accountFlow.value || error.value) return
@@ -479,7 +539,7 @@ onMounted(async () => {
               max="180"
               step="0.0000001" /></label
           ><label
-            >坐标系<select v-model="form.coordinateSystem">
+            >坐标系<select v-model="form.coordinateSystem" aria-label="坐标系">
               <option>WGS84</option>
               <option>GCJ02</option>
               <option>BD09</option>
@@ -492,11 +552,39 @@ onMounted(async () => {
               min="10"
               max="10000"
               step="1" /></label
-          ><button class="button button-secondary" type="button" @click="locate">
-            采集设备位置</button
-          ><MapPicker v-if="dialogVisible" @pick="Object.assign(form, $event)" />
+          ><button
+            class="button button-secondary"
+            type="button"
+            :disabled="locating || saving"
+            @click="locate"
+          >
+            {{ locating ? '正在采集位置…' : '采集设备位置' }}</button
+          ><MapPicker
+            v-if="dialogVisible"
+            :latitude="form.latitude"
+            :longitude="form.longitude"
+            :coordinate-system="form.coordinateSystem"
+            @pick="Object.assign(form, $event)"
+          />
+          <div v-if="locationPreview" class="notice org-bindings" role="status">
+            <p>
+              设备位置预览（WGS84）：{{ locationPreview.latitude }}，{{
+                locationPreview.longitude
+              }}；精度约 {{ Math.ceil(locationPreview.accuracy) }} 米。
+            </p>
+            <p v-if="locationPreview.accuracy > form.radiusMeters">
+              定位精度超过打卡半径，建议重新采集或核对准确坐标。
+            </p>
+            <p>确认这是办公场所的位置后，再采用坐标。当前位置尚未填入或保存。</p>
+            <button type="button" class="button button-secondary" @click="useLocation">
+              采用此位置
+            </button>
+            <button type="button" class="button button-secondary" @click="discardLocation">
+              放弃此位置
+            </button>
+          </div>
           <p class="muted org-bindings">
-            设备位置为WGS84，高德选点为GCJ02。不同坐标系须由打卡模块统一后计算距离。
+            当前打卡仅支持WGS84场所。设备位置为WGS84，高德选点为GCJ02；GCJ02或BD09可存档，但目前不能用于排班打卡，请提供经过核对的WGS84坐标。
           </p></template
         >
         <label

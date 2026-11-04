@@ -91,6 +91,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 
 ## 常见排查
 
+### 高德地图凭据
+
+1. 在[高德开放平台](https://lbs.amap.com/)注册/登录，按页面要求完成开发者认证。
+2. 控制台进入“应用管理→我的应用”，创建应用，例如“联智考勤”。
+3. 添加Key，服务平台选择 **Web端(JS API)**；创建后取得Key及配套安全密钥securityJsCode。参见[官方准备说明](https://lbs.amap.com/api/javascript-api-v2/prerequisites)。
+4. 复制 `frontend/.env.example` 为本机 `frontend/.env.local`，填写 `VITE_AMAP_KEY` 和 `VITE_AMAP_SECURITY_CODE`；已有本机文件时直接编辑，勿覆盖其他配置。
+5. 重启前端，登录管理员/人事，进入“组织与场所→办公场所”，打开新增或编辑弹窗。地图点击后先预览，点击“采用地图位置”才填入表单，最终保存才落库。
+
+需要同时配置Key和安全密钥，依据[高德安全密钥说明](https://lbs.amap.com/api/javascript-api-v2/guide/abc/jscode)。本机文件不提交Git或发送到聊天。若出现INVALID_USER_DOMAIN，检查域名白名单与当前访问地址；官方[技术咨询](https://lbs.amap.com/cooperation/technical_advisory)说明本地调试可暂不设置白名单，部署时按实际域名配置。
+
+高德选点为GCJ02，仅可作为该坐标系档案保存；当前B打卡只支持WGS84，不能直接拿地图坐标当WGS84使用。设备定位采集WGS84，仍需核对真实办公位置。
+
+地图仿真验收先启动隔离演示后端，再在frontend运行 `npm run test:map`。它在5174启动独立前端，以合成凭据及模拟SDK验证交互，不修改本机配置，不访问真实高德服务。真实地图加载、瓦片、授权和手机定位须另外实测。
+
 | 现象 | 检查位置 |
 | --- | --- |
 | 找不到 java / npm | 安装路径和 PATH，安装后重新打开终端 |
@@ -104,3 +118,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。本轮Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
 
 旧V1库升级后账号/部门保留，company_id为空；由ADMIN明确建立公司、部门并调整员工归属，HR分配公司前无公司业务访问权。不要删除原库来绕过升级。浏览器完整验收建议使用另一个空演示库或独立内存库，避免验收账号进入原有数据。
+
+2026-10-31 三人整合版本仍使用上述启动方式。登录后“考勤工作台”“我的申请”和“业务助手”的本人记录查询可用；知识库上传/检索及模型提问保持关闭，不需要配置模型来运行现有业务。整合不新增数据库迁移，当前正式版本为 V4.1。完整验收使用独立 `lianzhi_verify` 演示实例，结束后须切回正式 MySQL 配置；不要在正式库开启演示模式。实际结果见[本轮整合验收](verification/member-a-integration-2026-10-31.md)。

@@ -30,6 +30,9 @@ const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
   { path: '/attendance', name: '考勤工作台', icon: Calendar },
+  { path: '/knowledge', name: '企业知识库', icon: List },
+  { path: '/assistant', name: '业务助手', icon: ChatDotRound },
+  { path: '/reports', name: '统计报表', icon: List, permission: 'organization:manage' },
   {
     path: '/organization',
     name: '组织与场所',
@@ -40,10 +43,6 @@ const navigation = [
   { path: '/approvals', name: '我的申请', icon: Calendar, permission: 'approvals:read' },
   { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
   { path: '/roadmap', name: '建设进度', icon: List },
-]
-const upcoming = [
-  { name: '统计报表', icon: List },
-  { name: 'AI 业务助手', icon: ChatDotRound },
 ]
 watch(
   () => route.path,
@@ -101,11 +100,6 @@ async function signOut() {
             ><component :is="item.icon" /><span>{{ item.name }}</span
             ><ArrowRight class="nav-arrow" /></RouterLink
         ></template>
-        <p class="nav-label nav-label-next">接下来</p>
-        <div v-for="item in upcoming" :key="item.name" class="nav-item nav-pending">
-          <component :is="item.icon" /><span>{{ item.name }}</span
-          ><small>待开发</small>
-        </div>
       </nav>
       <div class="sidebar-bottom">
         <span class="status-dot"></span>第 1 阶段 · 系统基础<span>v0.1</span>

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
+import { zipSync, strToU8 } from 'fflate'
 import http, { write } from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { businessDate, statusLabels, timeText } from './api'
@@ -20,6 +21,14 @@ const info = ref(null),
   currentStep = ref(''),
   storageNotice = ref(''),
   scenarioReady = ref(false)
+const report = ref(null),
+  document = ref(null),
+  answer = ref(null),
+  searchHits = ref([])
+const extraComplete = computed(
+  () =>
+    report.value && document.value?.processing === 'PARSED' && answer.value?.state === 'ANSWERED',
+)
 const savedKey = 'lianzhi.presentation.v2'
 const scenarioFields = [
   'date',
@@ -118,6 +127,8 @@ function clearResults() {
   approval.value = null
   qrImage.value = ''
   scenarioReady.value = false
+  report.value = document.value = answer.value = null
+  searchHits.value = []
 }
 async function asUser(username) {
   if (disposed) throw new Error('已退出演示台，请重新进入后核对记录')
@@ -260,7 +271,7 @@ async function punch(type) {
       `/attendance/workplaces/${context.workplaceId}/challenge`,
       {},
     )
-    const canvas = document.createElement('canvas')
+    const canvas = window.document.createElement('canvas')
     await QRCode.toCanvas(canvas, challenge.token, { width: 400, margin: 3 })
     qrImage.value = canvas.toDataURL('image/png')
     const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
@@ -356,7 +367,120 @@ async function actionRestore() {
     throw e
   }
 }
-async function playAll() {
+async function demonstrateReports() {
+  return action(async () => {
+    if (!milestones.value.every((step) => step.done)) throw new Error('请先完成打卡与审批步骤')
+    await asUser('admin')
+    const context = scenario.value
+    const result = await http.get('/reports/attendance', {
+      params: { from: context.date, to: context.tomorrow, userId: context.userId },
+    })
+    const leave = result.records.items.find((row) => row.date === context.tomorrow)
+    if (
+      result.source !== 'AttendanceDays.list' ||
+      leave?.leaveMinutes !== 480 ||
+      !leave.approvalIds.includes(context.approvalId)
+    )
+      throw new Error('报表尚未核对到本轮480分钟请假及审批来源')
+    report.value = result
+    message.value = '报表已核对：读取同一考勤口径，包含本轮审批来源。'
+  })
+}
+async function demonstrateKnowledge() {
+  return action(async () => {
+    await asUser('admin')
+    const employee = await http.get('/employees/me')
+    if (!document.value) {
+      const form = new FormData()
+      form.append('companyId', employee.companyId)
+      form.append('visibility', 'COMPANY')
+      const policy = `${scenario.value.username} 年假申请流程：员工先提交请假申请，管理员审批通过后，系统按排班扣除休息时间并回写考勤。展示班次09:00至18:00，午休12:00至13:00，全天请假为480分钟。未经审批的申请不计入获批请假。本制度为课堂合成资料，不是真实公司制度。`
+      const bytes = zipSync({
+        '[Content_Types].xml': strToU8(
+          '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+        ),
+        '_rels/.rels': strToU8(
+          '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+        ),
+        'word/document.xml': strToU8(
+          `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${policy}</w:t></w:r></w:p></w:body></w:document>`,
+        ),
+      })
+      form.append(
+        'file',
+        new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }),
+        `课堂制度-${scenario.value.username}.docx`,
+      )
+      document.value = await write('post', '/knowledge/documents', form)
+    }
+    const deadline = Date.now() + 60000
+    while (['QUEUED', 'PROCESSING'].includes(document.value.processing)) {
+      if (disposed) throw new Error('已退出演示台')
+      if (Date.now() >= deadline) throw new Error('文档解析尚未完成，可稍后重试；不会伪造成功结果')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      document.value = await http.get(`/knowledge/documents/${document.value.id}`)
+    }
+    if (document.value.processing !== 'PARSED')
+      throw new Error(`文档未解析成功：${document.value.message}`)
+    const hits = await http.get('/knowledge/search', {
+      params: { query: `${scenario.value.username} 年假`, mode: 'TEXT', limit: 10 },
+    })
+    if (!hits.some((hit) => hit.citation.documentId === document.value.id))
+      throw new Error('未检索到刚上传的制度，请核对知识库状态')
+    searchHits.value = hits
+    message.value = '知识库已核对：文件已落库、解析并通过文字检索命中。'
+  })
+}
+async function demonstrateAnswer() {
+  return action(async () => {
+    if (!document.value || !searchHits.value.length) throw new Error('请先完成知识库上传与检索')
+    await asUser(scenario.value.username)
+    const result = await write('post', '/assistant/ask', {
+      question: `${scenario.value.username} 年假`,
+    })
+    if (
+      result.state !== 'ANSWERED' ||
+      !result.references.some((ref) => ref.source.documentId === document.value.id)
+    )
+      throw new Error(result.message || '问答未返回本轮制度的有效来源')
+    const source = result.references.find((ref) => ref.source.documentId === document.value.id)
+    const original = await http.get(
+      `/knowledge/documents/${source.source.documentId}/sources/${source.source.chunk.sequence}`,
+      {
+        params: { version: source.source.version },
+      },
+    )
+    if (!original.chunk.content.includes(source.quote)) throw new Error('摘录与当前原文不一致')
+    answer.value = result
+    await asUser('admin')
+    message.value = '摘录已核对：按员工权限读取制度，引用与当前原文一致；未调用大模型。'
+  })
+}
+async function downloadReport() {
+  return action(async () => {
+    await asUser('admin')
+    const context = scenario.value
+    const query = new URLSearchParams({
+      from: context.date,
+      to: context.tomorrow,
+      userId: context.userId,
+    })
+    const response = await fetch(`/api/reports/attendance/export?${query}`, {
+      credentials: 'same-origin',
+    })
+    if (!response.ok) throw new Error('导出失败，请核对权限及网络后重试')
+    const url = URL.createObjectURL(await response.blob())
+    const link = window.document.createElement('a')
+    link.href = url
+    link.download = `课堂考勤-${context.username}.csv`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    message.value = '已下载真实报表CSV，可用Excel打开核对。'
+  })
+}
+async function playAll(full = false) {
   if (!canClick.value) return
   automatic.value = true
   stopRequested.value = false
@@ -367,6 +491,12 @@ async function playAll() {
     ['员工提交请假', requestLeave],
     ['管理员审批及回写', approve],
   ]
+  if (full)
+    tasks.push(
+      ['读取统计报表', demonstrateReports],
+      ['上传制度并检索', demonstrateKnowledge],
+      ['按员工权限摘录制度', demonstrateAnswer],
+    )
   try {
     for (const [label, task] of tasks) {
       if (disposed || stopRequested.value) break
@@ -381,8 +511,10 @@ async function playAll() {
       currentStep.value = ''
       if (stopRequested.value)
         message.value = '自动演示已暂停，已完成的记录保留。请核对后台结果后继续。'
-      else if (milestones.value.every((step) => step.done))
-        message.value = '完整演示已完成：两条打卡记录、审批通过及480分钟请假均已从后台核对。'
+      else if (milestones.value.every((step) => step.done) && (!full || extraComplete.value))
+        message.value = full
+          ? '整站演示已完成：打卡、审批回写、统计报表、知识库检索和带出处摘录均已核对。'
+          : '完整演示已完成：两条打卡记录、审批通过及480分钟请假均已从后台核对。'
     }
   } finally {
     if (!disposed) automatic.value = false
@@ -421,8 +553,11 @@ onUnmounted(() => {
     <div class="panel controls">
       <h2>展示步骤</h2>
       <div class="steps">
-        <button class="button button-primary" :disabled="!canClick" @click="playAll">
+        <button class="button button-primary" :disabled="!canClick" @click="playAll()">
           一键完整演示
+        </button>
+        <button class="button button-primary" :disabled="!canClick" @click="playAll(true)">
+          一键整站演示
         </button>
         <button
           v-if="automatic"
@@ -524,6 +659,71 @@ onUnmounted(() => {
         <p>只有后端批准并完成考勤调整后，才显示实际请假分钟和来源。</p>
       </section>
     </div>
+    <section class="panel block" aria-label="整站联动结果">
+      <h2>报表、知识库与制度摘录</h2>
+      <p>
+        无需SDK、网络或外部模型。上传的是合成制度；回答仅摘录有权访问的原文，不代表生成式AI、OCR或语音转写已接入。
+      </p>
+      <div class="steps">
+        <button
+          class="button button-secondary"
+          :disabled="!canClick || !milestones.every((step) => step.done)"
+          @click="demonstrateReports"
+        >
+          6. 核对报表
+        </button>
+        <button
+          class="button button-secondary"
+          :disabled="!canClick || !report"
+          @click="demonstrateKnowledge"
+        >
+          7. 上传制度并检索
+        </button>
+        <button
+          class="button button-secondary"
+          :disabled="!canClick || !searchHits.length"
+          @click="demonstrateAnswer"
+        >
+          8. 核对带出处摘录
+        </button>
+        <button
+          class="button button-secondary"
+          :disabled="!canClick || !report"
+          @click="downloadReport"
+        >
+          下载本轮CSV
+        </button>
+      </div>
+      <p v-if="report" data-testid="demo-report">
+        报表已核对：{{ report.records.total }}条日记录，请假{{
+          report.totals.leaveMinutes
+        }}分钟；来源{{ report.source }}。
+      </p>
+      <p v-if="document" data-testid="demo-document">
+        制度：{{ document.name }} · {{ document.processing }} ·
+        {{ document.chunkCount }}个切片；本轮文字检索{{
+          searchHits.filter((hit) => hit.citation.documentId === document.id).length
+        }}条命中。
+      </p>
+      <div v-if="answer" data-testid="demo-answer">
+        <h3>离线原文摘录（非生成式AI）</h3>
+        <p style="white-space: pre-wrap">{{ answer.text }}</p>
+        <p v-for="reference in answer.references" :key="reference.id">
+          出处[{{ reference.id }}]：{{ reference.source.documentId }} · 版本{{
+            reference.source.version
+          }}
+          · 切片{{ reference.source.chunk.sequence }}
+        </p>
+      </div>
+      <div class="steps">
+        <RouterLink class="button button-secondary" to="/reports">统计报表与图表</RouterLink>
+        <RouterLink class="button button-secondary" to="/knowledge">知识库文件管理</RouterLink>
+        <RouterLink class="button button-secondary" to="/assistant">业务助手与确认申请</RouterLink>
+      </div>
+      <p>
+        若当前是员工身份，报表需要重新登录演示管理员；整站演示完成后已自动切回管理员。刷新只恢复考勤进度，报表与制度可按6—8步重新核对。
+      </p>
+    </section>
     <section class="panel block">
       <h2>其他展示入口</h2>
       <div class="steps">

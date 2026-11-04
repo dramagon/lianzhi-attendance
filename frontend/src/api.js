@@ -16,9 +16,15 @@ http.interceptors.response.use(
 export default http
 
 // 每次写请求获取当前会话令牌，支持登录后CSRF轮换。
-export async function write(method, url, data) {
+export async function write(method, url, data, config = {}) {
   const csrf = await http.get('/auth/csrf')
-  return http.request({ method, url, data, headers: { [csrf.headerName]: csrf.token } })
+  return http.request({
+    ...config,
+    method,
+    url,
+    data,
+    headers: { ...config.headers, [csrf.headerName]: csrf.token },
+  })
 }
 
 export async function login(username, password) {

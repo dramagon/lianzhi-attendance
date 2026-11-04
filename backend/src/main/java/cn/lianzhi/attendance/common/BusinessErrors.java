@@ -24,6 +24,6 @@ public class BusinessErrors {
     }
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ApiResponse<Void>> tooLarge(MaxUploadSizeExceededException error) {
-        return ResponseEntity.status(413).body(ApiResponse.error("FILE_TOO_LARGE", "上传文件过大，头像请控制在2MB以内"));
+        return ResponseEntity.status(413).body(ApiResponse.error("FILE_TOO_LARGE", "上传文件过大：头像最多2MB，知识文档最多10MiB"));
     }
 }

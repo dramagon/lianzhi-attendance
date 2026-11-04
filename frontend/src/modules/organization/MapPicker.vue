@@ -1,51 +1,107 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { loadAMap } from './amap'
+const props = defineProps({ latitude: Number, longitude: Number, coordinateSystem: String })
 const emit = defineEmits(['pick'])
 const container = ref(null)
 const message = ref('')
-const key = import.meta.env.VITE_AMAP_KEY
-let map
+const key = import.meta.env.VITE_AMAP_KEY?.trim()
+const securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE?.trim()
+const configured = key && securityCode
+const loading = ref(false)
+const failed = ref(false)
+const preview = ref(null)
+let map, marker, sdk
 let disposed = false
-onMounted(async () => {
-  if (!key) {
-    message.value = '地图选点尚未接入：未配置高德地图凭据。可手动录入坐标或使用设备定位。'
+function clearPreview() {
+  preview.value = null
+  marker?.setMap(null)
+  marker = null
+}
+function showSaved() {
+  clearPreview()
+  if (
+    !map ||
+    props.coordinateSystem !== 'GCJ02' ||
+    !Number.isFinite(props.latitude) ||
+    !Number.isFinite(props.longitude)
+  )
+    return
+  const position = [props.longitude, props.latitude]
+  marker = new sdk.Marker({ position, map })
+  map.setCenter(position)
+}
+watch(() => [props.latitude, props.longitude, props.coordinateSystem], showSaved)
+async function load() {
+  if (loading.value || disposed) return
+  if (!configured) {
+    message.value =
+      '地图选点尚未接入：请在本机配置高德Key和安全密钥。可手动录入坐标或使用设备定位。'
     return
   }
+  loading.value = true
+  failed.value = false
+  message.value = '正在加载地图…'
   try {
-    if (!window.AMap) {
-      window._AMapSecurityConfig = { securityJsCode: import.meta.env.VITE_AMAP_SECURITY_CODE || '' }
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(key)}`
-        script.onload = resolve
-        script.onerror = reject
-        document.head.appendChild(script)
-      })
-    }
+    sdk = await loadAMap(key, securityCode)
     if (disposed) return
-    map = new window.AMap.Map(container.value, { zoom: 12 })
+    map = new sdk.Map(container.value, { zoom: 12 })
+    showSaved()
     map.on('click', (event) => {
-      emit('pick', {
-        latitude: Number(event.lnglat.getLat().toFixed(7)),
-        longitude: Number(event.lnglat.getLng().toFixed(7)),
+      if (disposed) return
+      const latitude = event.lnglat.getLat(),
+        longitude = event.lnglat.getLng()
+      if (
+        ![latitude, longitude].every(Number.isFinite) ||
+        Math.abs(latitude) > 90 ||
+        Math.abs(longitude) > 180
+      )
+        return
+      clearPreview()
+      preview.value = {
+        latitude: Number(latitude.toFixed(7)),
+        longitude: Number(longitude.toFixed(7)),
         coordinateSystem: 'GCJ02',
-      })
-      message.value = '已采集高德地图坐标（GCJ02），请核对后保存。'
+      }
+      marker = new sdk.Marker({ position: [longitude, latitude], map })
     })
-    message.value = '点击地图采集坐标（GCJ02）。'
+    message.value = '点击地图预览位置，确认采用后才填入场所坐标。'
   } catch {
-    message.value = '地图加载失败，请检查本机凭据、域名白名单和网络。可手动录入坐标。'
+    if (disposed) return
+    map?.destroy()
+    map = null
+    failed.value = true
+    message.value = '地图加载失败或超时，请核对本机凭据、域名白名单和网络；也可手动录入坐标。'
+  } finally {
+    if (!disposed) loading.value = false
   }
-})
+}
+function usePoint() {
+  if (!preview.value) return
+  const point = { ...preview.value }
+  clearPreview()
+  emit('pick', point)
+}
+onMounted(load)
 onBeforeUnmount(() => {
   disposed = true
+  clearPreview()
   map?.destroy()
 })
 </script>
 <template>
   <div class="map-picker">
-    <div v-if="key" ref="container" class="map-canvas" aria-label="办公场所地图"></div>
+    <div v-if="configured" ref="container" class="map-canvas" aria-label="办公场所地图"></div>
     <p class="muted small-text" role="status">{{ message }}</p>
+    <button v-if="failed" type="button" class="button button-secondary" @click="load">
+      重新加载地图
+    </button>
+    <div v-if="preview" class="notice" role="status">
+      <p>地图位置预览（GCJ02）：{{ preview.latitude }}，{{ preview.longitude }}。</p>
+      <p>高德坐标目前不能直接用于排班打卡。采用将替换表单中的坐标和坐标系，仍须保存后才会落库。</p>
+      <button type="button" class="button button-secondary" @click="usePoint">采用地图位置</button>
+      <button type="button" class="button button-secondary" @click="showSaved">放弃地图位置</button>
+    </div>
   </div>
 </template>
 <style scoped>
@@ -55,5 +111,6 @@ onBeforeUnmount(() => {
 }
 .map-picker {
   grid-column: 1 / -1;
+  min-width: 0;
 }
 </style>

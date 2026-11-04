@@ -1,6 +1,65 @@
 import { test, expect } from '@playwright/test'
 import { writeFile, readFile } from 'node:fs/promises'
 
+test('整站演示真实串联报表、DOCX解析、员工来源引用与CSV下载', async ({ page }) => {
+  test.setTimeout(90000)
+  if (!(await classroom(page))) return
+  const crashes = []
+  page.on('pageerror', (error) => crashes.push(error.message))
+  await page.getByRole('button', { name: '一键整站演示', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('整站演示已完成', { timeout: 65000 })
+  await expect(page.getByTestId('demo-report')).toContainText('请假480分钟')
+  await expect(page.getByTestId('demo-document')).toContainText('.docx · PARSED')
+  await expect(page.getByTestId('demo-answer')).toContainText('非生成式AI')
+  await expect(page.getByTestId('demo-answer')).toContainText('480分钟')
+  const username = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('lianzhi.presentation.v2')).username,
+  )
+  await expect(page.getByTestId('demo-answer')).toContainText(username)
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: '下载本轮CSV', exact: true }).click()
+  const csv = await download
+  expect(csv.suggestedFilename()).toContain(username)
+  const content = await readFile(await csv.path(), 'utf8')
+  expect(content).toContain('480')
+  expect(content).toContain(`SHOW${username.slice(4)}`)
+  await page.screenshot({ path: '../artifacts/classroom-full-success.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: '../artifacts/classroom-full-mobile.png', fullPage: true })
+  await page.getByRole('link', { name: '统计报表与图表', exact: true }).click()
+  await expect(page.getByRole('heading', { name: /统计|报表/ }).first()).toBeVisible()
+  await page.goto('/knowledge')
+  await expect(
+    page.getByRole('heading', { name: `课堂制度-${username}.docx · 第1版`, exact: true }),
+  ).toBeVisible()
+  await page.goto('/assistant')
+  await expect(page.getByLabel('制度问答状态')).toContainText('离线原文摘录')
+  expect(crashes).toEqual([])
+})
+
+test('整站演示遇到解析失败即停止，不把失败文档展示成回答', async ({ page }) => {
+  test.setTimeout(90000)
+  if (!(await classroom(page))) return
+  let asks = 0
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname === '/api/assistant/ask') asks++
+  })
+  await page.route('**/api/knowledge/documents/*', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    const body = await response.json()
+    body.data.processing = 'FAILED'
+    body.data.message = '模拟解析失败'
+    await route.fulfill({ response, json: body })
+  })
+  await page.getByRole('button', { name: '一键整站演示', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('模拟解析失败', { timeout: 65000 })
+  await expect(page.getByRole('status')).toContainText('自动演示已暂停')
+  await expect(page.getByTestId('demo-answer')).toHaveCount(0)
+  expect(asks).toBe(0)
+})
+
 async function classroom(page) {
   await page.goto('/login?redirect=/attendance/presentation')
   await page.getByRole('button', { name: '管理员', exact: true }).click()

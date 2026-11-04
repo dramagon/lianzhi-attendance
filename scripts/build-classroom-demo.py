@@ -47,13 +47,16 @@ Linux/macOS：在目录运行 sh start-demo.sh。
 首次启动在空的demo-data目录创建自己的演示库，不读取原项目数据库。
 
 浏览器地址：http://127.0.0.1:18080/login?redirect=/attendance/presentation
-点击“管理员”后登录，依次执行演示台步骤1—5。
+点击“管理员”后登录，点击“一键整站演示”，等待打卡、审批、报表、制度检索和摘录全部核对。
+也可依次执行步骤1—8，点击“下载本轮CSV”导出真实报表。
 也可点击“一键完整演示”；需要讲解时点击“暂停自动演示”，当前操作结束后停止。
 同一天、同一浏览器及原演示库可恢复上次进度；恢复只核对后台，不重新提交打卡或申请。
 公开演示账号：admin / hr / employee，公开密码 Lianzhi@2026。
 展示台会创建独立的合成员工并自动切换身份；二维码实际签发及图片解码，定位明确使用演示坐标。
 打卡和审批调用真实服务，成功结果来自数据库，不预写出勤。快速上下班可能显示0分钟及早退，属于实际规则计算。
 人脸仅支持摄像头预览和状态展示，实际SDK未接入，不宣称识别/活体通过。
+制度上传使用每轮独立合成DOCX，实际解析入库；问答为离线原文摘录（非生成式AI）。
+无需下载模型。向量检索、图像OCR和语音转写未配置，不包含在离线演示通过范围。
 
 不要公开此演示入口或录入真实员工资料。地址仅限本机，手机HTTPS沿用项目独立验收工具。
 占用端口18080时先关闭本次旧演示窗口；程序不停止已有其他服务。
@@ -62,7 +65,7 @@ Linux/macOS：在目录运行 sh start-demo.sh。
 ''', encoding='utf-8-sig')
     commit = subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip()
     dirty = bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip())
-    (output/'manifest.json').write_text(json.dumps({'commit':commit,'working_tree_dirty':dirty,'mode':'classroom','real_face_sdk':False},indent=2))
+    (output/'manifest.json').write_text(json.dumps({'commit':commit,'working_tree_dirty':dirty,'mode':'classroom','real_face_sdk':False,'answer_mode':'OFFLINE_EXTRACTIVE','modules':['organization','attendance','approval','reports','knowledge','assistant']},indent=2))
     archive = output.parent/(output.name+'.zip')
     # Explicit allowlist: never include demo-data, logs, uploaded pictures, credentials or prior files.
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as package:

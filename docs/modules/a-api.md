@@ -1,6 +1,6 @@
 # A模块接口记录
 
-负责人A。A1基础档案已接通；A2.2已接通真实申请、审批审计与B考勤回写。本机MySQL8.0.28已验证；外部地图与设备定位待验证。
+负责人A。A1基础档案已接通；A2.2已接通真实申请、审批审计与B考勤回写。本机MySQL8.0.28和真实高德地图加载/选点已验证；实际设备定位待验证。
 
 ## 通用约定与权限
 
@@ -108,13 +108,21 @@ UserView在原字段之外新增可空avatarUrl，登录/会话/个人资料/管
 
 场所页支持手工坐标、设备定位（WGS84，提示精度）与高德点击选点（GCJ02）。本机 `frontend/.env.local` 可配置 `VITE_AMAP_KEY`、`VITE_AMAP_SECURITY_CODE`，重启Vite生效；属于浏览器SDK配置，不要提交本机凭据。未配置显示“地图选点尚未接入”；加载失败明确提示，不伪造定位。
 
-实现依据[高德官方选点示例](https://lbs.amap.com/demo/javascript-api-v2/example/map/click-to-get-lnglat/)和[安全配置说明](https://developer.amap.com/api/javascript-api-v2/guide/abc/jscode)。本轮没有真实凭据，不宣称外部地图或设备定位通过。
+实现依据[高德官方选点示例](https://lbs.amap.com/demo/javascript-api-v2/example/map/click-to-get-lnglat/)和[安全配置说明](https://developer.amap.com/api/javascript-api-v2/guide/abc/jscode)。开发初验时没有真实凭据，仅完成仿真验证；真实结果见下方追加记录。
+
+后续用户于2026-10-31填好本机凭据，已完成真实高德SDK、瓦片显示、点击预览、确认填入及重开检查。此次未保存测试场所；手机GPS仍未实测。详见[地图验收追加记录](../verification/member-a-map-2026-10-31.md)。
+
+设备定位先展示坐标与精度预览，点击“采用此位置”后才填入表单，再通过普通保存落库；精度超过当前打卡半径时提示重新核对。放弃预览、手工修改坐标/坐标系、关闭编辑、切换分类或离开页面都会使旧定位回调失效，避免写入下一份场所档案。失败后可重试。当前 B 只接受 WGS84 场所；GCJ02/BD09 仍可存档，但不能直接排班打卡，也不在前端静默转换。
+
+地图加载复用单次SDK请求，12秒超时或脚本失败时明确提示并允许重试；关闭弹窗销毁地图与标记，加载期间关闭不创建旧实例。点击地图只展示标记及GCJ02预览，点击“采用地图位置”后才替换表单坐标；手工改坐标或放弃预览清除候选点。编辑已有GCJ02坐标时显示标记并居中；WGS84/BD09不直接投到GCJ02地图上。凭据申请和本机配置见[Windows说明](../windows-setup.md)。
 
 ## 迁移与旧资料
 
 V2新增org_company、workplace、employee_workplace，扩展sys_department/sys_user；保留V1、账号ID、原部门与密码哈希。旧版company_id保持空，不猜测归属。ADMIN先建公司/部门，再编辑员工明确选择归属和场所；旧部门迁出有效员工后可停用，仍由ADMIN维护。首次空演示库才生成明确标注的演示公司/部门/账号，已有库不重置、不重复生成。
 
 ## 运行记录与待办
+
+2026-10-31 已在个人整合分支接入 C `fa82d78`（包含 A/B），真实审批→考勤日结果→C 本人业务查询通过；首页和侧栏按当前能力修正。接口及已发布迁移未改变。验证范围、结果和剩余事项见[三人整合验收](../verification/member-a-integration-2026-10-31.md)。
 
 2026-10-26 Windows，显式JDK17.0.12、Node24.12.0/npm11.6.2、Git、H2。原有版本后端10项与前端构建通过并成功启动。A1增加范围、引用、绑定、会话、管理员并发及V1升级验证，最终结果见[验证记录](../verification.md)。
 

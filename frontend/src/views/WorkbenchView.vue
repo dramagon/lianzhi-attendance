@@ -111,7 +111,9 @@ onMounted(load)
         <div class="empty-attendance">
           <div class="empty-icon"><Calendar /></div>
           <h3>查看正式排班与考勤记录</h3>
-          <p>扫码打卡和申请审批已接通，请进入对应页面查看实际记录。汇总报表待接入。</p>
+          <p>
+            扫码打卡、申请审批和本人业务查询已接通，管理员与人事可在统计报表查看授权范围内的数据。
+          </p>
           <RouterLink to="/attendance" class="text-link">进入考勤页面<ArrowRight /></RouterLink>
         </div>
       </section>
