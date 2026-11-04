@@ -6,9 +6,10 @@ import cn.lianzhi.attendance.knowledge.text.TextNormalizer;
 import org.springframework.security.core.Authentication;
 import java.util.*;
 
-/** Internal RAG policy; deliberately not a bean until a durable authorized source store exists. */
+/** Grounded RAG policy wired to the durable authorized source store. */
 public final class CitedAnswerService {
     public interface Sources {
+        default Object identity(Authentication actor){return actor.getName();}
         List<Citation> search(Authentication actor,String question,int limit);
         Citation cite(Authentication actor,UUID documentId,long version,int sequence);
     }
@@ -26,6 +27,7 @@ public final class CitedAnswerService {
         if(question==null || question.length()>4000) throw new IllegalArgumentException("问题需为1～1000字");
         question=TextNormalizer.normalize(question);
         if(question.isBlank() || question.codePointCount(0,question.length())>1000)throw new IllegalArgumentException("问题需为1～1000字");
+        Object identity=sources.identity(actor);
         List<Citation> found;
         try { found=List.copyOf(sources.search(actor,question,6)); }
         catch(RuntimeException e) { return failure(State.UNAVAILABLE,"知识检索暂不可用"); }
@@ -63,7 +65,7 @@ public final class CitedAnswerService {
         }
         // Revalidate EVERY disclosed source after provider I/O, including offered but unquoted text.
         // The source port is responsible for checking current DB identity, ACL and version each time.
-        try { for(var citation:offered.values())reload(actor,citation); }
+        try { for(var citation:offered.values())reload(actor,citation);if(!Objects.equals(identity,sources.identity(actor)))throw new IllegalStateException("Identity changed"); }
         catch(RuntimeException e){return failure(State.STALE_SOURCES,"来源已更新、删除或不可访问，请重新查询");}
         return new Answer(State.ANSWERED,"回答已生成，请结合来源核对",draft.answer(),references);
     }

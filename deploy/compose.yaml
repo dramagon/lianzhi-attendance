@@ -31,6 +31,17 @@ services:
       AVATAR_DIRECTORY: /app/data/avatars
       LIANZHI_FACE_ENABLED: "false"
       LIANZHI_FACE_REQUIRED: "false"
+      LIANZHI_KNOWLEDGE_ENABLED: "true"
+      LIANZHI_AI_BASE_URL: ${LIANZHI_AI_BASE_URL:-}
+      LIANZHI_AI_MODEL: ${LIANZHI_AI_MODEL:-}
+      LIANZHI_AI_TIMEOUT_SECONDS: ${LIANZHI_AI_TIMEOUT_SECONDS:-45}
+      LIANZHI_EMBEDDING_BASE_URL: ${LIANZHI_EMBEDDING_BASE_URL:-}
+      LIANZHI_EMBEDDING_MODEL: ${LIANZHI_EMBEDDING_MODEL:-}
+      LIANZHI_EMBEDDING_REVISION: ${LIANZHI_EMBEDDING_REVISION:-1}
+      LIANZHI_OCR_URL: ${LIANZHI_OCR_URL:-}
+      LIANZHI_OCR_TOKEN: ${LIANZHI_OCR_TOKEN:-}
+      LIANZHI_TRANSCRIPTION_URL: ${LIANZHI_TRANSCRIPTION_URL:-}
+      LIANZHI_TRANSCRIPTION_TOKEN: ${LIANZHI_TRANSCRIPTION_TOKEN:-}
       TZ: Asia/Shanghai
     volumes:
       - avatar-data:/app/data/avatars
@@ -42,6 +53,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/frontend.Dockerfile
+      args:
+        VITE_AMAP_KEY: ${VITE_AMAP_KEY:-}
+        VITE_AMAP_SECURITY_CODE: ${VITE_AMAP_SECURITY_CODE:-}
     ports:
       - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8088}:80"
     depends_on:

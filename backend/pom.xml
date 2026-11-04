@@ -27,4 +27,8 @@
     <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
   </dependencies>
   <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+  <profiles><profile><id>standalone-package</id><build><resources>
+    <resource><directory>src/main/resources</directory></resource>
+    <resource><directory>target/c-web</directory><targetPath>static</targetPath></resource>
+  </resources></build></profile></profiles>
 </project>
