@@ -32,7 +32,7 @@ function render() {
         animation: false,
         aria: { enabled: true },
         tooltip: { trigger: 'axis', renderMode: 'richText' },
-        legend: { data: ['有效工时', '请假', '加班'] },
+        legend: { top: 0, data: ['有效工时', '请假', '加班'] },
         grid: { left: 58, right: 20, top: 45, bottom: 75 },
         xAxis: { type: 'category', data: props.trend.map((d) => d.date) },
         yAxis: { type: 'value', name: '分钟' },
@@ -83,6 +83,10 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 320px;
   min-width: 0;
+}
+.echart :deep(svg) {
+  width: 100%;
+  height: 100%;
 }
 @media (max-width: 600px) {
   .echart {
