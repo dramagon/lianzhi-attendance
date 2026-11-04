@@ -134,3 +134,7 @@ B模块独立MySQL验证（需Docker、Python3与JDK，无需宿主机安装MySQ
 人脸业务流程代码已补齐：本人登记/更新/删除、加密特征、短时挑战、服务端判定及与打卡同事务消费。手机采集界面需明确授权，V5存储已按正式V4/V4.1顺序发布；缺实际SDK适配器、官方授权、加密密钥或阈值时处理仍关闭。用户目标为Windows，目前尚无SDK与授权，因此不宣称真实识别已完成；配置入口见接入交接。设备检查页支持下载人工验收报告，默认全部未执行，不保存坐标、二维码或图像。
 
 2026-11-03已接入A正式审批182d248并发布V5存储。`python scripts/test-attendance-mysql.py --face-workflow`可在一次性容器验证审批/考勤与人脸业务（明确使用测试SDK替身，不代表识别通过）；迁移和联调更新见[B交接](docs/team/member-b-handoff-2026-10-27.md)。
+
+## C模块本机整合交付
+
+C收尾实现与真实验证见[收尾契约](docs/modules/c-completion.md)和[验收记录](docs/verification/member-c-completion.md)。当前电脑可双击根目录 `start-c-full.cmd` 启动本地真实模型、embedding、OCR、转写和同源应用；独立依赖保存在Git忽略目录，不含在仓库。其他电脑按[安装说明](docs/modules/c-media-services.md)配置。完整课程的共享中间件、真实地图/SDK、手机、云效与集群验收仍需整组落实。

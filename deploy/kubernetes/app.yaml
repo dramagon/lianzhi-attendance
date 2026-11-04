@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lianzhi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: avatars
+  namespace: lianzhi
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: lianzhi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: backend
+          image: lianzhi-backend:local
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: lianzhi-runtime
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: mysql
+            - name: SERVER_ADDRESS
+              value: 0.0.0.0
+            - name: AVATAR_DIRECTORY
+              value: /app/data/avatars
+            - name: LIANZHI_FACE_ENABLED
+              value: "false"
+            - name: LIANZHI_FACE_REQUIRED
+              value: "false"
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 250m
+            limits:
+              memory: 1Gi
+              cpu: "2"
+          startupProbe:
+            httpGet:
+              path: /api/system/info
+              port: 8080
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/system/info
+              port: 8080
+            periodSeconds: 10
+          volumeMounts:
+            - name: avatars
+              mountPath: /app/data/avatars
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: avatars
+          persistentVolumeClaim:
+            claimName: avatars
+        - name: temporary
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lianzhi
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: lianzhi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: lianzhi-web:local
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 500m
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: lianzhi
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80

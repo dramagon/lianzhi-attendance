@@ -8,6 +8,7 @@ import java.util.List;
 /** Dependency gate only. No workspace bean, upload parser, identity binding or V6 execution. */
 @RestController
 @RequestMapping("/api/knowledge")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="LIANZHI_KNOWLEDGE_ENABLED",havingValue="false")
 public class KnowledgeController {
     public record Capability(boolean available, String phase, boolean uploadAvailable,
                              boolean textSearchAvailable, boolean vectorSearchAvailable, List<String> blockers) {}

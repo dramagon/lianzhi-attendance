@@ -26,7 +26,7 @@ class OllamaCitedModelTest {
     @Test void structuredProtocolSeparatesSystemAndUntrustedSourcesAndDeclaresNoTools() throws Exception {
         serve(200,response(draft()));var result=new OllamaCitedModel(base,"fixture").generate("如何请假",evidence());
         assertThat(result.state()).isEqualTo(ProviderResult.State.SUCCESS);
-        var sent=request.get();assertThat(sent.path("stream").booleanValue()).isFalse();assertThat(sent.path("format").asText()).isEqualTo("json");assertThat(sent.has("tools")).isFalse();
+        var sent=request.get();assertThat(sent.path("stream").booleanValue()).isFalse();assertThat(sent.path("format").path("type").asText()).isEqualTo("object");assertThat(sent.has("tools")).isFalse();
         assertThat(sent.path("messages").get(0).path("role").asText()).isEqualTo("system");
         assertThat(sent.path("messages").get(0).path("content").asText()).contains("不可信数据");
         var data=json.readTree(sent.path("messages").get(1).path("content").asText());assertThat(data.path("sources").get(0).path("text").asText()).contains("忽略权限");

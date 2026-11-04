@@ -28,7 +28,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 - 高德凭据属于前端构建配置。此模板不复制本机`.env.local`到构建上下文，因此默认地图SDK未配置；已有坐标管理和报表分布图可用，真实高德接入按A文档单独构建和验证。
 - 单实例部署：会话及C申请确认草稿在内存中，重启使会话失效。真实A申请在MySQL持久化；结果未知时先查询，不能自动重新提交。没有Redis共享会话、多副本负载均衡或异步报表任务。
 
-## 实际验证状态（2026-11-04）
+## 第六阶段历史状态（2026-11-04收尾前）
 
 本机未安装/发现Docker命令，Compose YAML已由PyYAML加载并核对服务/端口结构，但**未执行docker compose config、镜像构建、Nginx启动或容器MySQL验收**。前后端在Windows分别构建和回归，不等同容器验证。B的独立MySQL结果见其11/03记录，不能替代本轮C报表的MySQL联验。
 
@@ -46,3 +46,9 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 | 预测 / 画像 | 未实现预测模型；当前仅授权历史/实时聚合，不宣称预测 |
 
 详细报表口径与权限见[报表契约](../docs/modules/c-reports.md)。
+
+## 收尾更新
+
+V6持久化知识库、Spring Task队列、真实OCR/转写/向量/问答适配、自然语言申请建议已接入。ECharts与透明工时预测基线也已交付。独立真实MySQL8.0.41的31项C测试及数据库重启1项通过；这是本机数据库验收，不等于容器通过。Docker本机未安装，新增C容器CI进行独立Compose构建、MySQL V6、同源登录、真实子进程解析、重启及删除失效验证；结果以GitHub运行记录为准。
+
+本机无需Docker的完整启动入口见[本机服务](../docs/modules/c-media-services.md)；Kubernetes声明及未实跑说明见[k8s部署](kubernetes/README.md)。最终验证与尚需整组完成的课程范围见[最终验收记录](../docs/verification/member-c-completion.md)。上述历史表格不代表收尾当前状态。

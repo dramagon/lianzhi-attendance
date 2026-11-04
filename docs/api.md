@@ -65,3 +65,5 @@ A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过�
 2026-11-01新增`GET /api/attendance/me/punches/requests/{requestId}`，只读查询当前登录者的打卡回执，用于网络恢复后核实已落库结果，不自动重发打卡。返回`found/event`及暂未查到的处理边界见B接口文档。
 
 同日后续新增本人`POST/PUT/DELETE /api/face/enrollment`、`POST /api/face/challenges`和multipart验证流程，打卡支持`faceVerificationId`。业务与安全流程已有实现，实际虹软适配器与授权尚缺，处理默认关闭（2026-11-03已整合正式V4/V4.1/V5存储）；完整字段及启用条件见B接口文档与[人脸接入说明](modules/b-face-integration.md)。
+
+C收尾当前接口与V6生命周期以[收尾契约](modules/c-completion.md)为准，取代旧阶段“知识库关闭”的当前描述；早期记录保留历史事实。
