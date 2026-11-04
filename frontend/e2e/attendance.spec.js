@@ -116,6 +116,8 @@ test('手机四个考勤页无横向溢出，刷新保留会话，未登录不�
   await employeeLogin(page)
   for (const title of ['今日打卡', '考勤记录', '排班与规则', '人脸管理']) {
     await page.getByRole('link', { name: title, exact: true }).click()
+    // Lazy route loading may finish after click; do not reload the previous page mid-navigation.
+    await expect(page.getByRole('link', { name: title, exact: true })).toHaveClass(/selected/)
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true)

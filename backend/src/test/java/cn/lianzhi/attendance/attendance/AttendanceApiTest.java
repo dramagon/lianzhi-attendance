@@ -15,6 +15,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AttendanceApiTest {
+    @Test @WithMockUser(username="employee",roles="EMPLOYEE")
+    void classroomHelpersAreNotAvailableInNormalApplication() throws Exception {
+        mvc.perform(get("/api/attendance/presentation")).andExpect(status().isNotFound());
+    }
     @Autowired MockMvc mvc;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired AttendanceStore store;

@@ -1,6 +1,6 @@
 # B模块：排班、考勤与人脸接入边界
 
-2026-10-27：B分支整合A组织/场所/审批前置分支`4216eb8`，不合并main。V1/V2保持原样，新增正式V3；此前只含事件表的候选V3已移除。正式排班、真实挑战二维码、WGS84定位打卡、本人原始记录、日考勤与审批调整服务已实现。人脸SDK与A的真实审批保存尚待配合，不宣称完整人脸或整条审批业务已完成。
+2026-10-27：B分支整合A组织/场所/审批前置分支`4216eb8`，不合并main。V1/V2保持原样，新增正式V3；此前只含事件表的候选V3已移除。正式排班、真实挑战二维码、WGS84定位打卡、本人原始记录、日考勤与审批调整服务已实现。该段为初次交付记录。2026-11-03已接入A正式审批182d248及V4/V4.1，并正式发布V5存储；实际SDK仍未接入，识别处理保持关闭。
 
 ## 使用流程
 
@@ -13,6 +13,8 @@
 摄像头/定位在HTTPS或本机安全上下文使用，需要设备授权；云浏览器仿真定位不等于真实手机验收。人脸页仅本机摄像头预览，检测/比对/活体当前均未接入，登记/验证返回503。A头像不是人脸凭据。
 
 ## 接口与权限
+
+课堂展示包额外提供`GET /api/attendance/presentation`，仅`classroom` profile和`lianzhi.demo=true`同时启用时存在，仍要求登录；返回classroom、instance、message。正常应用不存在该接口。展示台准备档案、签发二维码、打卡与审批全部调用现有受认证/CSRF/角色保护的业务API，没有额外绕过权限的写接口。使用说明见[课堂展示包](../../tools/classroom/README.md)。
 
 沿用Session、CSRF与ApiResponse。POST需先GET `/api/auth/csrf`，使用返回的头名/token。本人ID只取认证上下文；管理查询和排班复用A的DataScope、EmployeeService和WorkplaceService，HR仅本公司。日期范围from/to最多94天。
 
@@ -77,7 +79,7 @@ Schedule请求：
 
 ## 安全与持久化
 
-V3依次在V1/V2后创建attendance_event、attendance_schedule、attendance_adjustment，引用真实sys_user/workplace。没有应用V4/V5。
+V3依次在V1/V2后创建attendance_event、attendance_schedule、attendance_adjustment，引用真实sys_user/workplace。2026-11-03默认迁移已包含A V4、V4.1及B V5；V5仅准备存储，不启用SDK。人脸时间列使用微秒精度，审计按员工/版本建立索引。
 
 HMAC-SHA256挑战绑定场所、过期秒数和随机nonce，恒定时间验签。单实例进程密钥重启即轮换，旧二维码失效；多实例共享密钥/轮换方案尚未实现，不能直接扩成多实例。每个员工独立防重，共享场所二维码允许不同员工使用。数据库唯一约束为(userId,requestId)、(userId,businessDate,type)、(userId,nonce)。事务锁定当前员工，串行处理打卡、排班和调整；重复请求在有效挑战窗口内返回原事件，过期后应先查询记录核实。
 
@@ -87,11 +89,11 @@ EventView仅返回id/workplaceId/businessDate/type/occurredAt/distanceMeters，�
 
 B已实现A定义的`ApprovalAttendancePort`，`available()`表示V3可用。`validate(Authentication,Adjustment)`复核管理角色、调用者/approverId一致、不自审、申请人/公司匹配、真实排班/场所、顺序、重叠和补卡方向。`apply`再次检查，并以approvalId幂等追加attendance_adjustment；同ID不同内容冲突，原始事件不变。以同一员工锁防并发，计算失败事务回滚。
 
-这是**仅供可信服务调用的Java接口，没有HTTP“直接审批调整”接口**。A必须在真实申请审批事务内：锁定待审批申请、再次鉴权并CAS转换状态，再调用B的validate/apply；审批状态、审计、B调整应同一数据源同一事务，失败整体回滚。不能让浏览器/模型自行构造Adjustment，也不能把A的preview当审批成功。B不写A的申请表、不激活A的V4。
+这是**仅供可信服务调用的Java接口，没有HTTP“直接审批调整”接口**。A必须在真实申请审批事务内：锁定待审批申请、再次鉴权并CAS转换状态，再调用B的validate/apply；审批状态、审计、B调整应同一数据源同一事务，失败整体回滚。不能让浏览器/模型自行构造Adjustment，也不能把A的preview当审批成功。当前已接入A正式ApprovalService的create/decide及V4，B不另写一套申请审批。
 
 ## 需要其他模块协助
 
-见[本轮交接与后续事项](../team/member-b-handoff-2026-10-27.md)。A接真实V4与审批事务，C接带身份范围的日服务。虹软SDK版本/系统平台/授权和V5需在V4顺序明确后继续；当前无官方SDK授权，不能以恒真逻辑代替识别。
+见[本轮交接与后续事项](../team/member-b-handoff-2026-10-27.md)。A正式V4与联合事务已接入，C接带身份范围的日服务。V5已按V4/V4.1顺序发布，虹软SDK版本/平台/授权仍需后续接入；当前无官方SDK授权，不能以恒真逻辑代替识别。
 
 ## 验证
 
@@ -110,3 +112,7 @@ MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检�
 新增认证路由`/attendance/device`检查当前设备环境，不提交打卡或人脸登记，不新增数据API。独立HTTPS验收工具见tools/mobile-acceptance/README.md；真机执行情况仍须单独填写验收表，不能以浏览器仿真代替。
 
 2026-11-01人脸本机预览支持取消授权等待，晚到的旧授权/播放失败不会影响新预览；撤回授权、切页、切后台及pagehide释放摄像头，返回后需主动重新开启。打卡定位也丢弃失效页面的旧回调，按设备提供的定位时间判断新鲜度。SDK接入条件与验收顺序见[人脸接入交接](b-face-integration.md)。
+
+### 2026-11-03审批与V5整合
+
+接入A正式审批后，真实申请与审计、B调整共同提交/回滚。审批DATETIME读取使用JDBC LocalDateTime，避免UTC云环境与Asia/Shanghai数据库之间偏移8小时；原有日期/权限/幂等规则不放宽，不自动重写既有历史调整。人脸status在SDK未配置时`storageAvailable=true`而`available/detection/comparison/liveness=false`，不把建表当作识别成功。

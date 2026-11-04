@@ -42,7 +42,7 @@ test('员工手机端可查看身份与考勤入口，管理接口不可访问',
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page, '员工')
   await expect(page.getByRole('heading', { name: '今日考勤' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '进入考勤页面' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '进入考勤页面', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '我的身份' })).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
