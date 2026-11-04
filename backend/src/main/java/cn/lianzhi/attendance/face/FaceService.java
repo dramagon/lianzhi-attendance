@@ -56,8 +56,8 @@ public class FaceService implements FaceAttendancePort {
     public boolean requiredForPunch() { return required; }
     private boolean schemaReady() {
         try {
-            Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('4','5') AND success=TRUE",Integer.class);
-            if(count==null || count!=2) return false;
+            Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('4','4.1','5') AND success=TRUE",Integer.class);
+            if(count==null || count!=3) return false;
             jdbc.queryForObject("SELECT COUNT(*) FROM face_enrollment WHERE user_id=-1",Integer.class);
             jdbc.queryForObject("SELECT COUNT(*) FROM face_challenge WHERE user_id=-1",Integer.class);
             jdbc.queryForObject("SELECT COUNT(*) FROM face_audit WHERE user_id=-1",Integer.class);

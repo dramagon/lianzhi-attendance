@@ -14,7 +14,8 @@ public class ApprovalStore {
     public ApprovalStore(JdbcTemplate jdbc) { this.jdbc=jdbc; }
     public record Entry(ApprovalRules.Request request,Long departmentId,String requestKey,String applicantName) {}
     private static LocalDateTime time(ResultSet rs,String name) throws SQLException {
-        Timestamp value=rs.getTimestamp(name); return value==null?null:value.toLocalDateTime();
+        // DATETIME represents business wall time; Timestamp would convert through the host zone.
+        return rs.getObject(name,LocalDateTime.class);
     }
     private final RowMapper<Entry> mapper=(rs,n)->new Entry(new ApprovalRules.Request(rs.getLong("id"),rs.getLong("applicant_id"),rs.getLong("company_id"),
         new ApprovalRules.Draft(ApprovalRules.Type.valueOf(rs.getString("request_type")),time(rs,"start_at"),time(rs,"end_at"),rs.getString("punch_type")==null?null:ApprovalRules.PunchType.valueOf(rs.getString("punch_type")),(Long)rs.getObject("workplace_id"),rs.getString("reason")),

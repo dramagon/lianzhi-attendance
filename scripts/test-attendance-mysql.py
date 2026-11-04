@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--maven-settings', type=Path)
     parser.add_argument('--maven-repo', type=Path)
-    parser.add_argument('--face-candidate', action='store_true', help='Also verify candidate V4/V5 and face business flow in another disposable database, with a test-only SDK simulator')
+    parser.add_argument('--face-workflow', '--face-candidate', dest='face_workflow', action='store_true', help='Also verify published migrations and face business flow in another disposable database, with a test-only SDK simulator; --face-candidate is a legacy alias')
     args = parser.parse_args()
     if not shutil.which('docker'):
         raise RuntimeError('Docker is required; no database was changed.')
@@ -101,7 +101,7 @@ def main():
             if not total:
                 raise RuntimeError('No selected tests executed')
             return total
-        main_count = tests('AttendanceWorkflowTest,AttendanceApiTest,AttendanceMysqlIT', 'mysql-tests.log')
+        main_count = tests('AttendanceWorkflowTest,AttendanceApiTest,AttendanceMysqlIT,ApprovalWorkflowTest', 'mysql-tests.log')
         snapshot = '''SELECT id,user_id,workplace_id,business_date,event_type,occurred_at,request_id,qr_nonce,distance_meters FROM attendance_event ORDER BY id;
 SELECT user_id,business_date,workplace_id,rule_json,holiday,created_by FROM attendance_schedule ORDER BY user_id,business_date;
 SELECT approval_id,user_id,company_id,draft_json,approver_id,approved_at FROM attendance_adjustment ORDER BY approval_id;'''
@@ -119,12 +119,12 @@ SELECT approval_id,user_id,company_id,draft_json,approver_id,approved_at FROM at
                   'schedules': int(sql('SELECT COUNT(*) FROM attendance_schedule;')),
                   'adjustments': int(sql('SELECT COUNT(*) FROM attendance_adjustment;')),
                   'restart_fingerprint': after, 'restart_unchanged': True}
-        if args.face_candidate:
-            # Deliberately separate from the V1/V2/V3 business/restart database above.
+        if args.face_workflow:
+            # Keep the face test fixture separate from the attendance/restart database.
             sql("CREATE DATABASE lianzhi_b_face_verify CHARACTER SET utf8mb4; GRANT ALL ON lianzhi_b_face_verify.* TO 'b_verify'@'%';")
             env['LIANZHI_FACE_TEST_URL'] = configure_endpoint('lianzhi_b_face_verify')
-            report['face_candidate_test_count'] = tests('FaceWorkflowTest', 'face-candidate.log')
-            report['face_candidate_migration_versions'] = sql('SELECT version FROM lianzhi_b_face_verify.flyway_schema_history WHERE success=1 ORDER BY installed_rank;').splitlines()
+            report['face_workflow_test_count'] = tests('FaceWorkflowTest', 'face-workflow.log')
+            report['face_migration_versions'] = sql('SELECT version FROM lianzhi_b_face_verify.flyway_schema_history WHERE success=1 ORDER BY installed_rank;').splitlines()
             report['face_test_provider'] = 'TEST_ONLY_SIMULATOR_NOT_REAL_RECOGNITION'
         (folder / 'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
         print(json.dumps(report, ensure_ascii=False, indent=2), flush=True)

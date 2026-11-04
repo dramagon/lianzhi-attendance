@@ -19,6 +19,6 @@ class AttendanceMysqlRestartIT {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_event",Long.class)).isGreaterThan(0);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_schedule",Long.class)).isGreaterThan(0);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_adjustment",Long.class)).isGreaterThan(0);
-        assertThat(jdbc.queryForList("SELECT version FROM flyway_schema_history WHERE success=1 ORDER BY installed_rank",String.class)).containsExactly("1","2","3","4","4.1");
+        assertThat(jdbc.queryForList("SELECT version FROM flyway_schema_history WHERE success=1 ORDER BY installed_rank",String.class)).containsExactly("1","2","3","4","4.1","5");
     }
 }

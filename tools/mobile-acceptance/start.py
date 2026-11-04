@@ -140,8 +140,11 @@ https://%s:%s {
         receipt=json.loads(request('/api/attendance/me/punches/requests/'+str(uuid.uuid4())))
         if receipt['data'] != {'found':False,'event':None}:
             raise RuntimeError('HTTPS authenticated read-only punch receipt check failed')
+        face_status=json.loads(request('/api/face/status'))['data']
+        if face_status.get('storageAvailable') is not True:
+            raise RuntimeError('Published face storage migration is not ready; inspect Flyway history')
         report={'trusted_tls':True,'hostname_verified':True,'secure_cookie_login':True,'csrf_rule_preview':True,
-                'punch_receipt_query':True,'demo':True,'device_route':True,'ca_certificate':str(ca)}
+                'punch_receipt_query':True,'face_storage_ready':True,'demo':True,'device_route':True,'ca_certificate':str(ca)}
         (run/'readiness.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
         print(json.dumps(report,ensure_ascii=False,indent=2),flush=True)
         if args.check:

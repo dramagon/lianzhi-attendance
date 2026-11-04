@@ -1,5 +1,10 @@
 export default [
   {
+    path: 'attendance/presentation',
+    component: () => import('./PresentationPage.vue'),
+    meta: { title: '课堂演示台' },
+  },
+  {
     path: 'attendance/device',
     component: () => import('./DeviceCheck.vue'),
     meta: { title: '设备检查' },
