@@ -122,3 +122,10 @@ classroom+demo同时启用才开放展示台状态与同源静态服务。正常
 后端346项、普通浏览器46项、展示包9项、实际换进程恢复1项、地图仿真4项、真实MySQL考勤/审批45项+重启1项+人脸业务14项均通过，前端构建和脚本检查通过。人脸14项继续使用明确的测试提供方，未宣称真实识别。详细证据及边界见[整站验证](../verification/member-b-classroom-full-2026-11-04.md)。运行方式见[课堂说明](../../tools/classroom/README.md)。
 
 本地可生成artifacts/classroom-demo.zip；ZIP不包含演示数据库、日志或上传资料。现场只需Java17+，Windows脚本和真实手机仍需现场走一遍。main仍由A协调合并；真实SDK、模型、向量、OCR/转写及小程序不包含在本离线展示通过范围。其他模块通过正式API联动，没有写库成功旁路。
+
+
+## 2026-11-06：展示前自检与真实进度表
+
+核对远端确认B整站版本8b12018已上传，main尚待A合并。新增Windows check-demo.cmd及启动前自动检查：文件SHA-256、Java17+、端口及目录写入，不建演示数据库。启动等待放宽到120秒，失败有明确退出码；本地runtime优先于JAVA_HOME/PATH。Linux/macOS支持--check。打包器8文件白名单、manifest文件哈希及checksums.sha256，不包含运行数据。更新过时roadmap与运行说明。
+
+打包/启动边界测试7项通过，实际新包课堂浏览器9项通过，Python编译与sh语法通过；未改业务代码，没有重复宣称后端/MySQL完整回归。Windows PowerShell仍待现场执行，官方Windows JRE元数据下载仍403，包不含JRE。下一步现场先check-demo.cmd，再start-demo.cmd及“一键整站演示”，最后由A审查合并。细节见[启动验证](../verification/member-b-startup-check-2026-11-06.md)。
