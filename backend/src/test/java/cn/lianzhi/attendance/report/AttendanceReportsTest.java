@@ -19,7 +19,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties="spring.datasource.url=${LIANZHI_REPORT_TEST_URL:jdbc:h2:mem:c-reports;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}")
+@SpringBootTest(properties="spring.datasource.url=${LIANZHI_REPORT_TEST_URL:${LIANZHI_C_REPORT_TEST_URL:jdbc:h2:mem:c-reports;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}}")
 @ActiveProfiles("test") @AutoConfigureMockMvc @Transactional
 class AttendanceReportsTest {
     @Autowired AttendanceReports reports;@Autowired AttendanceDays days;@Autowired AttendanceSchedules schedules;@Autowired JdbcTemplate jdbc;@Autowired MockMvc mvc;
@@ -47,7 +47,7 @@ class AttendanceReportsTest {
     @Test void overnightUsesShiftEndAndBusinessDateFromB(){
         var rule=new AttendanceRules.Rule(LocalTime.of(22,0),LocalTime.of(6,0),null,null,0,EnumSet.allOf(DayOfWeek.class));jdbc.update("UPDATE attendance_schedule SET rule_json=? WHERE user_id=?",schedules.encode(rule),user);jdbc.update("DELETE FROM attendance_event WHERE user_id=?",user);
         for(String type:List.of("IN","OUT")){var at=type.equals("IN")?date.atTime(22,0):date.plusDays(1).atTime(6,0);jdbc.update("INSERT INTO attendance_event(user_id,workplace_id,business_date,event_type,occurred_at,request_id,qr_nonce,distance_meters) VALUES(?,?,?,?,?,?,?,0)",user,place,date,type,java.sql.Timestamp.from(at.atZone(AttendanceRules.ZONE).toInstant()),UUID.randomUUID().toString(),UUID.randomUUID().toString());}
-        var r=reports.query(hr,filter(date,date),1,20);assertThat(r.records().items().get(0).finalized()).isTrue();assertThat(r.totals().workMinutes()).isEqualTo(480);assertThat(r.totals().expectedDays()).isEqualTo(1);assertThat(reports.query(hr,filter(date.plusDays(1),date.plusDays(1)),1,20).records().total()).isZero();
+        var r=reports.query(hr,filter(date,date),1,20);assertThat(r.records().items().get(0).finalized()).isTrue();assertThat(r.totals().workMinutes()).isEqualTo(480);assertThat(r.hours().get(22).checkIns()).isEqualTo(1);assertThat(r.hours().get(6).checkOuts()).isEqualTo(1);assertThat(r.hours().get(0).checkOuts()).isZero();assertThat(r.totals().expectedDays()).isEqualTo(1);assertThat(reports.query(hr,filter(date.plusDays(1),date.plusDays(1)),1,20).records().total()).isZero();
     }
     @Test void pendingRestAbsenceAndMissingAreDistinct(){
         shift(date.plusDays(1),false);shift(date.plusDays(2),false);event(date.plusDays(2),"IN",9);shift(date.plusDays(3),true);

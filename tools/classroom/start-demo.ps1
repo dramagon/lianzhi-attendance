@@ -16,7 +16,9 @@ try {
         '--server.address=127.0.0.1', '--server.port=18080', '--server.servlet.session.cookie.secure=false',
         '--spring.datasource.url=jdbc:h2:file:./demo-data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE',
         '--spring.datasource.username=sa', '--spring.datasource.password=', '--lianzhi.avatar-directory=./demo-data/avatars',
-        '--lianzhi.face.enabled=false', '--lianzhi.face.required-for-punch=false')
+        '--lianzhi.face.enabled=false', '--lianzhi.face.required-for-punch=false', '--LIANZHI_KNOWLEDGE_ENABLED=true',
+        '--LIANZHI_AI_BASE_URL=', '--LIANZHI_AI_MODEL=', '--LIANZHI_EMBEDDING_BASE_URL=', '--LIANZHI_EMBEDDING_MODEL=',
+        '--LIANZHI_OCR_URL=', '--LIANZHI_TRANSCRIPTION_URL=')
     $demoProcess = Start-Process -FilePath $javaExecutable -ArgumentList $demoArguments -WorkingDirectory $demoRoot -PassThru -NoNewWindow `
         -RedirectStandardOutput (Join-Path $demoRoot 'demo-data\backend.log') -RedirectStandardError (Join-Path $demoRoot 'demo-data\backend-error.log')
     $demoReady = $false
@@ -31,7 +33,7 @@ try {
     if (-not $demoReady) { throw 'Demo startup timed out. Check Java 17+ and the logs.' }
     $demoUrl = 'http://127.0.0.1:18080/login?redirect=/attendance/presentation'
     Write-Host "Open $demoUrl"
-    Write-Host 'Choose the demo administrator, log in, then follow steps 1-5.'
+    Write-Host 'Choose the demo administrator, log in, then choose the full-site demo button.'
     Write-Host 'Synthetic employees and simulated location. Face SDK is not enabled.'
     Start-Process $demoUrl
     Read-Host 'Keep this window open. Press Enter to stop the demo'

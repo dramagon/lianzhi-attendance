@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 
-@SpringBootTest
+@SpringBootTest(properties="LIANZHI_KNOWLEDGE_ENABLED=false")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class KnowledgeGateIntegrationTest {

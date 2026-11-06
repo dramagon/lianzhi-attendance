@@ -4,7 +4,7 @@ COPY backend/ ./
 RUN chmod +x mvnw && ./mvnw -B -ntp -DskipTests package
 
 FROM eclipse-temurin:17-jre
-RUN groupadd --system app && useradd --system --gid app --home /app app && mkdir -p /app/data/avatars && chown -R app:app /app
+RUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app --home /app app && mkdir -p /app/data/avatars && chown -R app:app /app
 WORKDIR /app
 COPY --from=build --chown=app:app /build/target/lianzhi-backend-0.1.0.jar app.jar
 USER app

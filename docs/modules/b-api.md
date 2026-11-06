@@ -116,3 +116,8 @@ MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检�
 ### 2026-11-03审批与V5整合
 
 接入A正式审批后，真实申请与审计、B调整共同提交/回滚。审批DATETIME读取使用JDBC LocalDateTime，避免UTC云环境与Asia/Shanghai数据库之间偏移8小时；原有日期/权限/幂等规则不放宽，不自动重写既有历史调整。人脸status在SDK未配置时`storageAvailable=true`而`available/detection/comparison/liveness=false`，不把建表当作识别成功。
+
+
+## 课堂整站展示（2026-11-04）
+
+展示台新增“一键整站演示”，在原有打卡与审批5步后调用C的正式报表、知识库和助手API，核对同一日记录及审批来源；无新增绕过权限的业务写入口。每轮合成制度生成DOCX，实际上传并等待解析结果，再按员工权限检索并核对引用。报表导出使用C现有CSV接口。失败会停止，不继续标记后续成功。流程、运行方式及边界见[课堂说明](../../tools/classroom/README.md)。

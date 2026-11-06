@@ -17,7 +17,7 @@ class FaceMigrationTest {
             s.executeUpdate("INSERT INTO approval_request(id,applicant_id,company_id,request_key,request_type,state,start_at,end_at,reason,version) VALUES(1,1,1,'old-approval','LEAVE','APPROVED','2026-11-04 09:00:00','2026-11-04 18:00:00','升级前已审批',1)");
             s.executeUpdate("INSERT INTO approval_transition(approval_id,from_state,to_state,actor_id,reason,occurred_at,version) VALUES(1,'PENDING','APPROVED',1,'原审计','2026-11-03 10:00:00',1)");
         }
-        var flyway=Flyway.configure().dataSource(url,"sa","").load();
+        var flyway=Flyway.configure().dataSource(url,"sa","").target("5").load();
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
         flyway.validate();assertThat(flyway.migrate().migrationsExecuted).isZero();
         try(var c=DriverManager.getConnection(url,"sa","");var s=c.createStatement()) {

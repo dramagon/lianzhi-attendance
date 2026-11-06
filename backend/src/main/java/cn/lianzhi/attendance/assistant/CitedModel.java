@@ -11,5 +11,6 @@ public interface CitedModel {
         public Draft { citations=List.copyOf(citations); }
     }
     ProviderAvailability availability();
+    default String mode() { return "GENERATION"; }
     ProviderResult<Draft> generate(String question, List<Evidence> evidence);
 }

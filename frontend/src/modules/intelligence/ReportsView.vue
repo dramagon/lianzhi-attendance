@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import http from '../../api'
+import ReportCharts from './ReportCharts.vue'
+import WorkplaceHeatmap from './WorkplaceHeatmap.vue'
 const parts = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai',
   year: 'numeric',
@@ -240,18 +242,7 @@ const heatGroups = computed(() => {
       <section class="panel">
         <h2>有效工时趋势</h2>
         <p v-if="!result.totals.scheduledDays">当前范围没有正式排班，不推算出勤或缺勤。</p>
-        <svg
-          v-else
-          class="report-chart"
-          viewBox="0 0 700 200"
-          role="img"
-          aria-label="按日有效工时趋势，详细数字见下方表格"
-        >
-          <path d="M30 20V160H670" fill="none" stroke="#ccd5df" />
-          <polyline :points="points" fill="none" stroke="#2563eb" stroke-width="3" />
-          <text x="30" y="190">{{ form.from }}</text>
-          <text x="570" y="190">{{ form.to }}</text>
-        </svg>
+        <ReportCharts v-if="result.totals.scheduledDays" :trend="result.trend" />
         <details>
           <summary>逐日统计数据</summary>
           <div class="report-table">
@@ -280,6 +271,7 @@ const heatGroups = computed(() => {
       </section>
       <section class="panel">
         <h2>场所分布与出勤热度</h2>
+        <WorkplaceHeatmap :places="result.workplaces" />
         <p>
           以办公场所登记坐标绘制相对分布，圆大小表示存在签到或签退的人天。同坐标系单独绘制；此图无地图底图，不代表员工实时位置或人流预测。
         </p>
@@ -327,6 +319,69 @@ const heatGroups = computed(() => {
                 <td>{{ p.scheduledDays }}</td>
                 <td>{{ p.attendedDays }}</td>
                 <td>{{ p.workMinutes }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section v-if="result.hours" class="panel" aria-label="有效签到签退小时分布">
+        <h2>有效签到／签退小时分布</h2>
+        <p>
+          按北京时间的实际有效时间归入小时，跨夜签退计入次日对应小时；包含获批补卡。反映当前筛选范围的事件密度，不推断零记录时段的排班需求。
+        </p>
+        <div class="report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>小时</th>
+                <th>有效签到</th>
+                <th>有效签退</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="hour in result.hours" :key="hour.hour">
+                <td>
+                  {{ String(hour.hour).padStart(2, '0') }}:00–{{
+                    String(hour.hour).padStart(2, '0')
+                  }}:59
+                </td>
+                <td>{{ hour.checkIns }}</td>
+                <td>{{ hour.checkOuts }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section v-if="result.forecast" class="panel" aria-label="工时参考预测">
+        <h2>工时参考预测</h2>
+        <p>{{ result.forecast.note }}</p>
+        <p>
+          有效样本 {{ result.forecast.samples }} 日；方法
+          {{
+            result.forecast.method === 'LINEAR_REGRESSION'
+              ? '线性回归'
+              : result.forecast.method === 'HISTORICAL_MEAN'
+                ? '历史均值'
+                : '样本不足'
+          }}。
+        </p>
+        <p v-if="result.forecast.validationDays">
+          使用最后{{ result.forecast.validationDays }}日作时间顺序验证，平均绝对误差{{
+            result.forecast.mae
+          }}分钟／应出勤人天，历史均值基线误差{{ result.forecast.meanBaselineMae }}分钟。
+        </p>
+        <div v-if="result.forecast.points.length" class="report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>参考有效分钟／应出勤人天</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="point in result.forecast.points" :key="point.date">
+                <td>{{ point.date }}</td>
+                <td>{{ point.minutesPerExpectedDay }}</td>
               </tr>
             </tbody>
           </table>

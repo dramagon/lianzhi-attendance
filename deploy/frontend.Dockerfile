@@ -3,6 +3,10 @@ WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
+ARG VITE_AMAP_KEY
+ARG VITE_AMAP_SECURITY_CODE
+ENV VITE_AMAP_KEY=$VITE_AMAP_KEY
+ENV VITE_AMAP_SECURITY_CODE=$VITE_AMAP_SECURITY_CODE
 RUN npm run build
 
 FROM nginx:stable-alpine

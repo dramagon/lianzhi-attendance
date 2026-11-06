@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import http from '../../api'
+import http, { write } from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import ApprovalConfirmation from './ApprovalConfirmation.vue'
 
@@ -11,6 +11,50 @@ const departmentId = ref(null)
 const error = ref('')
 const loading = ref(false)
 const result = ref(null)
+const question = ref(''),
+  answer = ref(null),
+  asking = ref(false),
+  reference = ref(null)
+let questionSequence = 0
+watch(question, () => {
+  questionSequence++
+  answer.value = null
+  reference.value = null
+})
+async function ask() {
+  const sequence = ++questionSequence
+  asking.value = true
+  error.value = ''
+  answer.value = null
+  reference.value = null
+  try {
+    const value = await write(
+      'post',
+      '/assistant/ask',
+      { question: question.value },
+      { timeout: 65000 },
+    )
+    if (sequence === questionSequence) answer.value = value
+  } catch (e) {
+    if (sequence === questionSequence) error.value = e.message
+  } finally {
+    asking.value = false
+  }
+}
+async function source(item) {
+  const sequence = questionSequence
+  reference.value = null
+  try {
+    const c = item.source
+    const value = await http.get(
+      `/knowledge/documents/${c.documentId}/sources/${c.chunk.sequence}`,
+      { params: { version: c.version } },
+    )
+    if (sequence === questionSequence) reference.value = value
+  } catch (e) {
+    if (sequence === questionSequence) error.value = e.message
+  }
+}
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date())
 const from = ref(today)
 const to = ref(today)
@@ -82,22 +126,68 @@ onMounted(load)
     {{ error }}<button class="text-button" @click="load">刷新服务状态</button>
   </div>
   <section v-if="capability" class="panel assistant-panel" aria-label="制度问答状态">
-    <h2>制度问答暂未开放</h2>
-    <p class="muted">文档接入完成并配置模型后，可根据有权阅读的资料生成带来源的回答。</p>
+    <h2>制度问答</h2>
+    <p class="muted">
+      根据有权阅读的资料生成带来源的回答，无可用依据时明确说明。文档中的命令不会获得业务操作权限。
+    </p>
     <p class="muted">
       问答模型：{{
-        capability.modelConfiguration === 'NOT_CONFIGURED' ? '未配置' : '已配置，尚待验证'
-      }}；文字识别与音视频转写：未配置。
+        capability.modelConfiguration === 'OFFLINE_EXTRACTIVE'
+          ? '离线原文摘录（非生成式AI）'
+          : capability.modelConfiguration === 'NOT_CONFIGURED'
+            ? '未配置'
+            : '已配置，尚待验证'
+      }}；OCR：{{
+        capability.ocrConfiguration === 'NOT_CONFIGURED' ? '未配置' : '已配置，尚待验证'
+      }}；转写：{{
+        capability.transcriptionConfiguration === 'NOT_CONFIGURED' ? '未配置' : '已配置，尚待验证'
+      }}。
     </p>
     <label for="assistant-question">制度问题</label>
     <div class="assistant-controls">
-      <input id="assistant-question" disabled placeholder="制度问答尚未开放" /><button
+      <input
+        id="assistant-question"
+        v-model="question"
+        maxlength="500"
+        placeholder="例如：年假如何申请？"
+      /><button
         class="button button-primary"
-        disabled
+        :disabled="
+          asking ||
+          !question.trim() ||
+          !capability.knowledgeAvailable ||
+          capability.modelConfiguration === 'NOT_CONFIGURED'
+        "
+        @click="ask"
       >
-        提问
+        {{ asking ? '正在核对依据…' : '提问' }}
       </button>
     </div>
+  </section>
+  <section v-if="answer" class="panel assistant-panel" aria-live="polite">
+    <h2>回答与引用</h2>
+    <p>{{ answer.message }}</p>
+    <p v-if="answer.text" style="white-space: pre-wrap; overflow-wrap: anywhere">
+      {{ answer.text }}
+    </p>
+    <ul>
+      <li v-for="item in answer.references" :key="item.id">
+        <strong>{{ item.id }} · 第{{ item.source.version }}版</strong>
+        <blockquote>{{ item.quote }}</blockquote>
+        <button class="button button-secondary" @click="source(item)">核对引用原文</button>
+      </li>
+    </ul>
+    <section v-if="reference" aria-label="引用原文">
+      <h3>引用原文 · 第{{ reference.version }}版</h3>
+      <p>
+        {{ reference.chunk.source.kind }} ·
+        {{ reference.chunk.source.ordinal || reference.chunk.source.name || '' }}
+      </p>
+      <pre style="white-space: pre-wrap; overflow-wrap: anywhere">{{
+        reference.chunk.content
+      }}</pre>
+      <button class="button button-secondary" @click="reference = null">关闭引用</button>
+    </section>
   </section>
   <section class="panel assistant-panel" aria-label="本人业务查询">
     <h2>我的业务记录</h2>
@@ -184,7 +274,11 @@ onMounted(load)
       </template>
     </div>
   </section>
-  <ApprovalConfirmation v-if="capability" :available="capability.writeAvailable" />
+  <ApprovalConfirmation
+    v-if="capability"
+    :available="capability.writeAvailable"
+    :suggestions-available="capability.modelConfiguration === 'CONFIGURED_NOT_VERIFIED'"
+  />
 </template>
 
 <style scoped>

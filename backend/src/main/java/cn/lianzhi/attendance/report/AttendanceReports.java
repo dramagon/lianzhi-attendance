@@ -31,7 +31,8 @@ public class AttendanceReports {
                          long workMinutes,long leaveMinutes,long overtimeMinutes){}
     public record Trend(LocalDate date,Totals totals){}
     public record Heat(long workplaceId,String name,BigDecimal latitude,BigDecimal longitude,String coordinateSystem,long scheduledDays,long attendedDays,long workMinutes){}
-    public record Result(Instant generatedAt,String timeZone,String source,int employeeCount,Totals totals,List<Trend> trend,List<Heat> workplaces,PageResult<Row> records){}
+    public record Hour(int hour,long checkIns,long checkOuts){}
+    public record Result(Instant generatedAt,String timeZone,String source,int employeeCount,Totals totals,List<Trend> trend,List<Heat> workplaces,PageResult<Row> records,WorkForecast.Forecast forecast,List<Hour> hours){}
     private record Snapshot(List<Row> rows,int employeeCount,List<Heat> heat){}
     @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
     public Result query(Authentication actor,Filter filter,int page,int size){
@@ -41,7 +42,7 @@ public class AttendanceReports {
         for(LocalDate date=filter.from();!date.isAfter(filter.to());date=date.plusDays(1)){
             LocalDate d=date;trend.add(new Trend(d,total(rows.stream().filter(r->r.date().equals(d)).toList())));
         }
-        return new Result(now,"Asia/Shanghai","AttendanceDays.list",snapshot.employeeCount(),total(rows),List.copyOf(trend),snapshot.heat(),new PageResult<>(rows.subList(start,Math.min(start+size,rows.size())),rows.size(),page,size));
+        return new Result(now,"Asia/Shanghai","AttendanceDays.list",snapshot.employeeCount(),total(rows),List.copyOf(trend),snapshot.heat(),new PageResult<>(rows.subList(start,Math.min(start+size,rows.size())),rows.size(),page,size),WorkForecast.calculate(trend),hours(rows));
     }
     @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
     public String export(Authentication actor,Filter filter){
@@ -93,6 +94,11 @@ public class AttendanceReports {
             heat.add(new Heat(place.id(),place.name(),place.latitude(),place.longitude(),place.coordinateSystem(),group.size(),group.stream().filter(r->r.checkIn()!=null || r.checkOut()!=null).count(),group.stream().mapToLong(Row::workMinutes).sum()));
         }
         return new Snapshot(List.copyOf(rows),selected.size(),List.copyOf(heat));
+    }
+    static List<Hour> hours(List<Row> rows){
+        long[] ins=new long[24],outs=new long[24];
+        for(var row:rows){if(row.checkIn()!=null)ins[row.checkIn().getHour()]++;if(row.checkOut()!=null)outs[row.checkOut().getHour()]++;}
+        var result=new ArrayList<Hour>();for(int hour=0;hour<24;hour++)result.add(new Hour(hour,ins[hour],outs[hour]));return List.copyOf(result);
     }
     static Totals total(List<Row> rows){
         long pending=0,expected=0,attended=0,late=0,early=0,absent=0,missing=0,leave=0,rest=0,work=0,lm=0,om=0;

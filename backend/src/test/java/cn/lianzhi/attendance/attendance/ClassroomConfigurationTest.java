@@ -24,6 +24,7 @@ class ClassroomConfigurationTest {
     void classroomIsExplicitAndNeverReportsFaceSuccessOrBypassesCsrf() throws Exception {
         mvc.perform(get("/api/attendance/presentation")).andExpect(status().isOk()).andExpect(jsonPath("$.data.classroom").value(true));
         mvc.perform(get("/api/face/status")).andExpect(jsonPath("$.data.available").value(false));
+        mvc.perform(get("/api/assistant/status")).andExpect(jsonPath("$.data.modelConfiguration").value("OFFLINE_EXTRACTIVE"));
         mvc.perform(post("/api/attendance/me/punches").contentType("application/json").content("{}"))
             .andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/accounts")).andExpect(status().isForbidden());

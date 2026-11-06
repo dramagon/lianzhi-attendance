@@ -20,16 +20,23 @@ public class AssistantController {
     private final AssistantActions actions;
     private final AssistantStatistics statistics;
     private final ApprovalService approvals;
-    public AssistantController(AssistantQueries queries,CitedModel model,EmbeddingProvider embedding,AssistantActions actions,AssistantStatistics statistics,ApprovalService approvals){this.queries=queries;this.model=model;this.embedding=embedding;this.actions=actions;this.statistics=statistics;this.approvals=approvals;}
+    private final cn.lianzhi.attendance.knowledge.storage.KnowledgeDocuments documents;
+    private final CitedAnswerService answers;private final OcrProvider ocr;private final TranscriptionProvider transcription;private final ApprovalDraftSuggestions suggestions;
+    public AssistantController(AssistantQueries queries,CitedModel model,EmbeddingProvider embedding,AssistantActions actions,AssistantStatistics statistics,ApprovalService approvals,cn.lianzhi.attendance.knowledge.storage.KnowledgeDocuments documents,CitedAnswerService answers,OcrProvider ocr,TranscriptionProvider transcription,ApprovalDraftSuggestions suggestions){this.queries=queries;this.model=model;this.embedding=embedding;this.actions=actions;this.statistics=statistics;this.approvals=approvals;this.documents=documents;this.answers=answers;this.ocr=ocr;this.transcription=transcription;this.suggestions=suggestions;}
     public record Capability(boolean knowledgeAvailable,boolean businessQueriesAvailable,boolean writeAvailable,
                              String modelConfiguration,String embeddingConfiguration,String ocrConfiguration,String transcriptionConfiguration,List<String> blockers){}
     @GetMapping("/status") public ApiResponse<Capability> status(){
-        return ApiResponse.ok(new Capability(false,true,approvals.status().available(),configuration(model.availability()),configuration(embedding.availability()),"NOT_CONFIGURED","NOT_CONFIGURED",
-                List.of("知识文档存储尚未接入，制度问答暂不可用","模型配置状态不代表实际联通，OCR与转写尚未配置")));
+        return ApiResponse.ok(new Capability(documents.available(),true,approvals.status().available(),"EXTRACTIVE".equals(model.mode())?"OFFLINE_EXTRACTIVE":configuration(model.availability()),configuration(embedding.availability()),configuration(ocr.availability()),configuration(transcription.availability()),
+                List.of("模型配置状态不代表实际联通，问答需要有权访问的文档和有效来源")));
     }
     private String configuration(ProviderAvailability value){return value==ProviderAvailability.NOT_CONFIGURED?"NOT_CONFIGURED":"CONFIGURED_NOT_VERIFIED";}
-    @PostMapping("/ask") public ResponseEntity<ApiResponse<Void>> ask(){
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error("ASSISTANT_UNAVAILABLE","知识库尚未接入，暂不能生成有依据的制度回答"));
+    public record Question(String question){}
+    public record DraftInstruction(String instruction){}
+    @PostMapping("/approval-suggestions") public ApiResponse<?> suggest(Authentication actor,@RequestBody DraftInstruction input){return ApiResponse.ok(suggestions.suggest(actor,input.instruction()));}
+    @PostMapping("/ask") public ResponseEntity<?> ask(Authentication actor,@RequestBody(required=false) Question input){
+        if(!documents.available()||model.availability()!=ProviderAvailability.AVAILABLE)return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error("ASSISTANT_UNAVAILABLE","知识库或模型未配置，暂不能生成有依据的制度回答"));
+        if(input==null||input.question()==null||input.question().codePointCount(0,input.question().length())>500)throw new IllegalArgumentException("问题需为1至500字");
+        return ResponseEntity.ok(ApiResponse.ok(answers.ask(actor,input.question())));
     }
     @GetMapping("/attendance") public ApiResponse<List<AttendanceDays.Day>> attendance(Authentication actor,
             @RequestParam(required=false) Long userId,@RequestParam LocalDate from,@RequestParam LocalDate to){

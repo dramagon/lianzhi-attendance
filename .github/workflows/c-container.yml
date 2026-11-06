@@ -1,0 +1,25 @@
+name: C容器集成验证
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  same-origin-mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 构建镜像并验证同源登录、V6、解析、检索与重启
+        run: python scripts/test-c-compose.py
+      - name: 保存合成验收结果与日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c-container-verification
+          path: |
+            artifacts/lianzhi-c-verify-*/result.json
+            artifacts/lianzhi-c-verify-*/*.log

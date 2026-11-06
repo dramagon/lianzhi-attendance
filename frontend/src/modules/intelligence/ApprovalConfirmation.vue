@@ -1,7 +1,34 @@
 <script setup>
 import { onMounted, reactive, ref, watch } from 'vue'
 import http, { write } from '../../api'
-const props = defineProps({ available: Boolean })
+const props = defineProps({ available: Boolean, suggestionsAvailable: Boolean })
+const instruction = ref(''),
+  suggestionMessage = ref('')
+async function suggest() {
+  if (busy.value || pending.value) return
+  busy.value = true
+  error.value = ''
+  suggestionMessage.value = ''
+  try {
+    const result = await write(
+      'post',
+      '/assistant/approval-suggestions',
+      {
+        instruction: instruction.value,
+      },
+      { timeout: 65000 },
+    )
+    suggestionMessage.value = result.message
+    if (result.ready) {
+      Object.assign(draft, result.preview.draft)
+      intentKey = null
+    }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+  }
+}
 const draft = reactive({
   type: 'LEAVE',
   startAt: '',
@@ -100,7 +127,27 @@ onMounted(async () => {
 <template>
   <section class="panel confirmation-panel" aria-label="申请确认">
     <h2>准备申请</h2>
-    <p class="muted">先核对申请内容，再由你确认提交。当前不自动生成申请内容，也不会替你审批。</p>
+    <p class="muted">
+      可手工填写，或由已配置模型整理建议。建议不会提交申请，仍需核对、预览及明确确认。
+    </p>
+    <div v-if="!pending && !submitted" class="suggestion">
+      <label
+        >用一句话描述申请<textarea
+          v-model="instruction"
+          maxlength="1000"
+          :disabled="busy"
+          placeholder="例如：2026年11月6日9点至18点请假，原因是办理证件。"
+        ></textarea></label
+      ><button
+        class="button button-secondary"
+        :disabled="busy || !instruction.trim() || !props.suggestionsAvailable || !props.available"
+        @click="suggest"
+      >
+        生成申请建议
+      </button>
+      <p v-if="!props.suggestionsAvailable" class="muted">模型未配置，可直接填写下方表单。</p>
+      <p v-if="suggestionMessage" role="status">{{ suggestionMessage }}</p>
+    </div>
     <div v-if="error" class="notice notice-error" role="alert">{{ error }}</div>
     <template v-if="submitted">
       <p role="status">
