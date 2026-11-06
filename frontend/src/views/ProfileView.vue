@@ -169,8 +169,7 @@ onUnmounted(clearPreview)
         <div class="permission-tags">
           <span class="tag tag-neutral">工作台</span
           ><span v-if="auth.can('accounts:read')" class="tag tag-neutral">系统账号查询</span
-          ><span class="tag tag-neutral">个人信息</span
-          ><span class="tag tag-neutral">建设进度</span>
+          ><span class="tag tag-neutral">个人信息</span>
         </div>
       </div>
     </section>

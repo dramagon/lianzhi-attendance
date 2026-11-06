@@ -42,7 +42,6 @@ const navigation = [
   { path: '/profile', name: '个人信息', icon: User },
   { path: '/approvals', name: '我的申请', icon: Calendar, permission: 'approvals:read' },
   { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
-  { path: '/roadmap', name: '建设进度', icon: List },
 ]
 watch(
   () => route.path,
@@ -101,9 +100,7 @@ async function signOut() {
             ><ArrowRight class="nav-arrow" /></RouterLink
         ></template>
       </nav>
-      <div class="sidebar-bottom">
-        <span class="status-dot"></span>第 1 阶段 · 系统基础<span>v0.1</span>
-      </div>
+      <div class="sidebar-bottom"><span class="status-dot"></span>联智企业工作空间</div>
     </aside>
     <div class="app-main">
       <header class="topbar">

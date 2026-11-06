@@ -7,10 +7,8 @@ import {
   OfficeBuilding,
   ArrowRight,
   Calendar,
-  Clock,
   Location,
   Document,
-  ChatDotRound,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
@@ -111,9 +109,7 @@ onMounted(load)
         <div class="empty-attendance">
           <div class="empty-icon"><Calendar /></div>
           <h3>查看正式排班与考勤记录</h3>
-          <p>
-            扫码打卡、申请审批和本人业务查询已接通，管理员与人事可在统计报表查看授权范围内的数据。
-          </p>
+          <p>查看排班、打卡与申请记录，管理员与人事可在统计报表查看授权范围内的数据。</p>
           <RouterLink to="/attendance" class="text-link">进入考勤页面<ArrowRight /></RouterLink>
         </div>
       </section>
@@ -171,37 +167,9 @@ onMounted(load)
             <b>个人信息</b>
             <p>查看自己的基础资料</p>
           </div>
-          <ArrowRight /></RouterLink
-        ><RouterLink to="/roadmap"
-          ><span class="quick-icon green"><Clock /></span>
-          <div>
-            <b>建设进度</b>
-            <p>了解已完成与后续模块</p>
-          </div>
           <ArrowRight
         /></RouterLink>
       </div>
     </section>
-    <div class="section-caption">
-      <h2>逐步连接每个工作环节</h2>
-      <span>以下能力正在按计划建设</span>
-    </div>
-    <div class="upcoming-grid">
-      <article
-        v-for="item in [
-          { name: '组织与场所', description: '连接部门、员工与办公地点', icon: Location },
-          { name: '考勤与审批', description: '打卡、请假、补卡和加班', icon: Calendar },
-          { name: 'AI 业务助手', description: '企业制度问答与考勤查询', icon: ChatDotRound },
-        ]"
-        :key="item.name"
-      >
-        <component :is="item.icon" />
-        <div>
-          <h3>{{ item.name }}</h3>
-          <p>{{ item.description }}</p>
-        </div>
-        <span>{{ item.name === '组织与场所' ? '基础已接通' : '待开发' }}</span>
-      </article>
-    </div>
   </template>
 </template>
