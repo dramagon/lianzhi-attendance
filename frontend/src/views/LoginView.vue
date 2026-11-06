@@ -84,7 +84,7 @@ async function submit() {
     <main class="login-main">
       <div class="login-mobile-brand"><BrandMark /><b>联智</b></div>
       <div class="login-form-wrap">
-        <span class="tag tag-blue">{{ info?.demo ? '本地演示环境' : '企业工作空间' }}</span>
+        <span class="tag tag-blue">企业工作空间</span>
         <h2>欢迎回来</h2>
         <p class="muted login-subtitle">登录账号，进入你的工作台</p>
         <p v-if="route.query.expired" class="notice notice-warning">登录已过期，请重新登录。</p>
@@ -129,13 +129,13 @@ async function submit() {
           </button>
         </form>
         <div v-if="info?.demo" class="demo-panel">
-          <div class="demo-title">快速填入演示账号<span>仅限本地体验</span></div>
+          <div class="demo-title">选择账号<span>本机快捷登录</span></div>
           <div class="demo-accounts">
             <button type="button" @click="chooseAccount('admin')">管理员</button
             ><button type="button" @click="chooseAccount('hr')">人事专员</button
             ><button type="button" @click="chooseAccount('employee')">员工</button>
           </div>
-          <p>演示密码：<code>Lianzhi@2026</code></p>
+          <p>初始密码：<code>Lianzhi@2026</code></p>
         </div>
         <p class="login-help">账号由管理员分配。遇到登录问题，请联系系统管理员。</p>
       </div>

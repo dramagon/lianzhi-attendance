@@ -191,7 +191,7 @@ async function prepare() {
     if (!employee.companyId || !status.available)
       throw new Error('演示公司或考勤服务未就绪，请使用独立展示包启动')
     const stamp = Date.now().toString(),
-      name = `课堂演示${stamp}`
+      name = `办公场所${stamp}`
     const date = businessDate(new Date(status.serverTime))
     await write('post', '/workplaces', {
       companyId: employee.companyId,
@@ -213,7 +213,7 @@ async function prepare() {
     if (!place) throw new Error('演示场所未找到，请重新准备')
     const person = await write('post', '/employees', {
       username: `show${stamp}`,
-      displayName: '课堂合成员工',
+      displayName: `员工${stamp}`,
       employeeNo: `SHOW${stamp}`,
       role: 'EMPLOYEE',
       companyId: employee.companyId,
