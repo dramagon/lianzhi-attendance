@@ -136,7 +136,7 @@ onMounted(async () => {
           v-model="instruction"
           maxlength="1000"
           :disabled="busy"
-          placeholder="例如：2026年11月6日9点至18点请假，原因是办理证件。"
+          placeholder="例如：明天9点至18点请假，原因是办理证件。"
         ></textarea></label
       ><button
         class="button button-secondary"

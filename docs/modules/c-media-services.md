@@ -4,6 +4,10 @@
 
 ## 当前电脑
 
+A 的 Windows 本机也已安装并验证真实服务（2026-11-07），不再仅依赖 C 的电脑结果。A 使用根目录 `start-ai.cmd` 打开18080端口，复用 `artifacts/classroom-demo` 内已有本机资料；不启用离线摘录提供方。详细证据及人脸待办见 [A真实AI验收](../verification/member-a-real-ai-2026-11-07.md)。Java17也会从标准 `Program Files/Java/jdk-*` 目录发现；项目 `artifacts/ffmpeg/bin` 存在完整二进制时仅向本次子进程添加PATH。其余机器仍须先安装依赖和模型。
+
+需要单独排查文字AI时，可在项目专用Python环境运行 `tools/c-package/run-full.py --text-only --port 18080`，该模式明确关闭OCR/转写配置。复用旧课堂资料需显式传入 `--reuse-classroom-data artifacts/classroom-demo`；仅接受本项目artifacts下已有数据库目录，不创建替代旧库。
+
 完成整合包构建后，在项目根目录双击 `start-c-full.cmd`。首次启动等待后台就绪，浏览器自动打开 `http://127.0.0.1:8088`。演示账号 `admin`、`hr`、`employee`，密码 `Lianzhi@2026`，仅用于本机合成资料。保持启动窗口打开；按 Ctrl+C 停止本次启动的服务。再次启动会保留 `artifacts/c-full-data/data` 中的数据。端口占用时明确停止，不接管或杀死其他程序。
 
 该入口同时启动 Ollama、OCR/转写桥接和已验证的 Java 同源整合包。日志在 `artifacts/c-full-data/run-*`。服务只监听回环地址。媒体令牌每次启动随机生成并仅在子进程环境中传递；不写到仓库。模型和数据库不包含在基础 ZIP 内，基础 ZIP 可独立使用文字解析、报表及手工申请。
