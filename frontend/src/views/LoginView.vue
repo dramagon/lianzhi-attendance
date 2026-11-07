@@ -84,6 +84,9 @@ async function submit() {
     <main class="login-main">
       <div class="login-mobile-brand"><BrandMark /><b>联智</b></div>
       <div class="login-form-wrap">
+        <p v-if="route.query.passwordChanged === '1'" role="status" class="notice">
+          密码已修改，请使用新密码登录。
+        </p>
         <span class="tag tag-blue">企业工作空间</span>
         <h2>欢迎回来</h2>
         <p class="muted login-subtitle">登录账号，进入你的工作台</p>

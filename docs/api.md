@@ -1,5 +1,7 @@
 # 接口与权限约定
 
+本人修改密码使用 `POST /api/profile/password`，要求Session与CSRF，成功后所有旧会话失效，详见[A模块](modules/a-api.md)。
+
 2026-11-07 排班及打卡支持WGS84和GCJ02场所。档案保留原坐标，考勤目录返回服务端换算的WGS84场所点，员工仍上报WGS84。范围及数值验证见[B模块说明](modules/b-api.md)。
 
 C第六阶段新增 `GET /api/reports/attendance`（授权汇总、趋势、场所热度及日记录分页）和 `GET /api/reports/attendance/export`（同筛选、同权限、带公式注入防护的CSV附件）。仅ADMIN/HR，最长94天、最多100名当前启用员工。接口参数、分母及边界见[报表契约](modules/c-reports.md)。
