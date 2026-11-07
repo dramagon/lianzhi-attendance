@@ -43,6 +43,14 @@ class AttendanceWorkflowTest {
         clock=new MutableClock(date.atTime(9,0).atZone(AttendanceRules.ZONE).toInstant());tokens=new QrTokens(new byte[32],clock);service=new AttendanceService(directory,store,tokens,clock);
         schedules.save(manager,schedule(date));
     }
+    @Test void gcjWorkplaceAcceptsGpsPunchAndKeepsOriginalCoordinates() {
+        jdbc.update("UPDATE workplace SET latitude=39.9102265,longitude=116.4037136,coordinate_system='GCJ02' WHERE id=?",place);
+        schedules.save(manager,schedule(date));
+        assertThat(directory.getObject().workplaces(user)).anyMatch(w -> w.id()==place);
+        service.punch(user,new AttendanceService.Punch("IN",tokens.issue(place).token(),UUID.randomUUID().toString(),new GeoFence.Point(39.908823,116.397470,"WGS84"),5.0));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_event WHERE user_id=? AND workplace_id=?",Long.class,user,place)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT coordinate_system FROM workplace WHERE id=?",String.class,place)).isEqualTo("GCJ02");
+    }
     AttendanceSchedules.Schedule schedule(LocalDate day){return new AttendanceSchedules.Schedule(user,day,place,new AttendanceRules.Rule(LocalTime.of(9,0),LocalTime.of(18,0),LocalTime.NOON,LocalTime.of(13,0),5,EnumSet.allOf(DayOfWeek.class)),false);}
     AttendanceService.EventView punch(String type){return service.punch(user,new AttendanceService.Punch(type,tokens.issue(place).token(),UUID.randomUUID().toString(),new GeoFence.Point(31.2,121.5,"WGS84"),10.0));}
     ApprovalAttendancePort.Adjustment adjustment(long id,ApprovalRules.Draft draft){return new ApprovalAttendancePort.Adjustment(id,user,company,draft,admin,date.atTime(19,0));}

@@ -600,7 +600,7 @@ onUnmounted(() => {
             <div>
               <b>{{
                 available
-                  ? workplaces[0]?.name || '请联系管理员绑定有效WGS84场所'
+                  ? workplaces[0]?.name || '请联系管理员绑定有效办公场所'
                   : '尚未绑定可用办公场所'
               }}</b>
               <p>

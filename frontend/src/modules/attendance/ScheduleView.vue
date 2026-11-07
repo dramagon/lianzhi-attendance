@@ -71,7 +71,7 @@ async function employeeChanged() {
   try {
     const data = await http.get(`/employees/${userId}/workplaces`)
     if (disposed || revision !== placesRevision || userId !== form.userId) return
-    places.value = data.filter((p) => p.enabled && p.coordinateSystem === 'WGS84')
+    places.value = data.filter((p) => p.enabled && ['WGS84', 'GCJ02'].includes(p.coordinateSystem))
     form.workplaceId = places.value[0]?.id || ''
     await load()
   } catch (e) {
@@ -187,8 +187,8 @@ onUnmounted(() => {
           <label
             >业务日期<input v-model="form.businessDate" type="date" :min="date" required /></label
           ><label
-            >有效绑定场所（WGS84）<select
-              aria-label="有效绑定场所（WGS84）"
+            >有效绑定场所（WGS84 / GCJ02）<select
+              aria-label="有效绑定场所（WGS84 / GCJ02）"
               v-model="form.workplaceId"
               required
             >
