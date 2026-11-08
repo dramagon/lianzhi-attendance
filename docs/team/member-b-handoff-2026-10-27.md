@@ -137,3 +137,11 @@ classroom+demo同时启用才开放展示台状态与同源静态服务。正常
 真实联调用合成员工、服务器时间次日正式排班及正常请假审批，核对480分钟、审批编号、CSV内容及390px布局。初次测试错误使用过去日期，被既有排班规则拒绝，已改测试数据而未放宽业务限制。最终验证和剩余范围见[个人月历验证](../verification/member-b-personal-month.md)。
 
 本轮最终前端构建、完整浏览器49项、离线展示包9项、打包/启动检查7项通过。后端及数据库结构没有修改，真实SDK/活体与现场Windows/手机验收边界保持原样。
+
+## B云端收尾交付
+
+收尾改在codex/member-b-cloud-finish，基于A1562571且保留B558fd4a自检、185c2e0月历。B1已上传212887b：整合真实ArcSoft/可选人脸、坐标修复、密码与真实AI基线；补3项人脸凭据回归。后端365项中364通过、Windows真SDK条件1跳过，主站完整浏览器52项通过。不可继续认定A真实SDK/AI未实现。
+
+B2独立mobile实现uni-app员工客户端，H5与微信小程序都可构建，复用Session/CSRF、扫码/GPS、上下班、本人记录、登记/更新/删除/验证及未知结果回执。8项协议与5项H5浏览器通过；微信原生/手机/Windows真SDK本轮未运行。B3提供无秘密值输出的SDK静态兼容检查（4项测试）与逐项未执行现场清单。详见[移动云端验证](../verification/member-b-mobile-cloud.md)及mobile/README.md。
+
+C/A需接线：实际微信AppID/合法域名、可信HTTPS静态页及同源API代理；C若更改SESSION/JSESSIONID名称需同步原生Cookie白名单测试。没有新增服务端API、认证机制或迁移，也没有修改A本机资料。最终PR指向A整合分支，main仍由A处理。
