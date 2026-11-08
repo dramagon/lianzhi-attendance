@@ -157,7 +157,7 @@ class Configuration:
                          '--lianzhi.demo=' + ('false' if args.mysql else 'true'),
                          '--server.address=127.0.0.1', '--server.port=' + str(args.port)]
         if args.reuse_classroom_data:
-            self.app_args += ['--spring.datasource.url=jdbc:h2:file:./demo-data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE',
+            self.app_args += ['--spring.datasource.url=jdbc:h2:file:./demo-data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;OPTIMIZE_REUSE_RESULTS=FALSE',
                               '--lianzhi.avatar-directory=./demo-data/avatars']
 
 

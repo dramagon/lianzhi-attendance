@@ -138,7 +138,7 @@ class ApprovalWorkflowTest {
         assertThat(result.stream().filter(o->o instanceof ApprovalService.Detail).count()).isEqualTo(1);assertThat(count("approval_transition")).isEqualTo(2);
         var state=approvals.detail(owner,r.request().id()).entry().request().state();assertThat(count("attendance_adjustment")).isEqualTo(state==ApprovalRules.State.APPROVED?1:0);
     }
-    @Test void concurrentIdenticalApprovalIsIdempotent() throws Exception {
+    @RepeatedTest(50) void concurrentIdenticalApprovalIsIdempotent() throws Exception {
         var r=create(leave());var result=race(()->approvals.decide(manager,r.request().id(),decision(ApprovalRules.Action.APPROVE)),()->approvals.decide(manager,r.request().id(),decision(ApprovalRules.Action.APPROVE)));
         assertThat(result).allMatch(o->o instanceof ApprovalService.Detail);assertThat(count("approval_transition")).isEqualTo(2);assertThat(count("attendance_adjustment")).isEqualTo(1);
     }

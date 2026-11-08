@@ -66,3 +66,5 @@ python3 tools/c-package/run-full.py --mysql --env-file artifacts/c-mysql-ai.env 
 结果写入独立 `artifacts/c-mysql-ai-*/result.json`，失败也保留证据。测试数据/日志留在该目录；退出时关闭自己的进程并删除临时密码配置。检查范围包括真实模型带引用回答、OCR/转写及向量、跨公司/CSRF、模型建议不落库、用户确认及数据库防重、审批回写与考勤/报表/助手同口径、提供方停机恢复、MySQL/应用重启、任务租约及显式重试、身份变更和删除后引用失效。不替代生产环境验收。
 
 轻量启动边界回归：`python -m unittest discover -s scripts -p test_c_runtime.py -v`。新增 Windows/Linux CI 只验证启动配置边界；不下载模型，不将配置测试称为真实推理或 Linux 全链路通过。
+
+H2演示/测试模式附加 `OPTIMIZE_REUSE_RESULTS=FALSE`，避免项目当前H2版本在等待锁前后复用过期查询结果。课堂库复用入口同样保留该设置；自行覆盖H2 URL时也应追加。此配置不用于MySQL。完整并发验证及上游问题链接见[本阶段验收](../verification/member-c-mysql-ai-2026-11-08.md)。

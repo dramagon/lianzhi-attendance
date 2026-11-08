@@ -40,6 +40,14 @@
 
 没有改登录/导航或前端页面，本轮未重复本机浏览器全量；远端既有完整工作流仍保留。提交时远端CI尚未运行，具体链接和结果在PR/交付回复核对，不预先标记通过。
 
+## 首次远端回归与 H2 缓存修正
+
+首个提交 `cea9e1c` 的[MySQL容器验证](https://github.com/dramagon/lianzhi-attendance/actions/runs/42470912906)及[Windows/Linux启动配置](https://github.com/dramagon/lianzhi-attendance/actions/runs/42470913147)通过；[完整回归](https://github.com/dramagon/lianzhi-attendance/actions/runs/42470913108)在既有 `ApprovalWorkflowTest.concurrentIdenticalApprovalIsIdempotent` 失败。两个相同审批应返回同一结果，实际其中一个拿到旧PENDING状态并触发版本冲突，后续浏览器步骤未运行。
+
+本机将原用例增强为50次重复执行后复现1次失败，证据 `approval-race-repeated-before.log`。路径与 [H2 2.3.232 官方问题 #4208](https://github.com/h2database/h2database/issues/4208)相符：加锁前后相同SELECT可能复用过期结果。采用上游给出的 `OPTIMIZE_REUSE_RESULTS=FALSE`，只附加到H2演示/测试URL及已有课堂/移动验收覆盖URL。MySQL连接配置和审批业务逻辑没有改动，也没有升级依赖或修改断言。自定义H2 URL应同步添加此项。
+
+修正后同一并发用例50次全部通过，`approval-race-repeated-after.log`。新增的重复执行保留在回归中；启动边界7项、PowerShell解析及Python编译检查通过。随后完整verify与同源打包412项，失败0、错误0、虹软条件专项跳过1，411项实际执行通过，证据 `backend-h2-cache-verify.log`。新增49次重复执行计入该总数，不将其当作49个不同业务场景。远端重新验证结果在最终PR核对，不用首次失败的运行冒充通过。
+
 ## 剩余范围
 
 - Redis共享Session、多实例会话和序列化为C2，尚未实现；当前重启失效是既有单实例模式的预期行为。

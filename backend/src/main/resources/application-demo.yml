@@ -1,6 +1,7 @@
 spring:
   datasource:
-    url: jdbc:h2:file:./data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE
+    # H2 2.3.232 can reuse stale SELECT results across a waited row lock (#4208).
+    url: jdbc:h2:file:./data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;OPTIMIZE_REUSE_RESULTS=FALSE
     username: sa
     password:
   h2:
