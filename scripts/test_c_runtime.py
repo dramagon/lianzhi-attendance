@@ -97,6 +97,16 @@ class ConfigurationTest(unittest.TestCase):
             self.assertGreater(listener.fileno(), 0)
             self.assertFalse(config.folder.exists())
 
+    def test_only_the_backend_inherits_database_redis_and_sdk_credentials(self):
+        env={'DB_PASSWORD':'db-private','LIANZHI_REDIS_PASSWORD':'redis-private','LIANZHI_ARCSOFT_SDK_KEY':'sdk-private',
+             'ADMIN_INITIAL_PASSWORD':'admin-private','LIANZHI_MEDIA_TOKEN':'media-private','OLLAMA_MODELS':'models','PATH':'runtime'}
+        self.assertEqual(runtime.service_environment(env,'application'),env)
+        model=runtime.service_environment(env,'ollama')
+        self.assertEqual(model,{'OLLAMA_MODELS':'models','PATH':'runtime'})
+        media=runtime.service_environment(env,'media')
+        self.assertEqual(media,{'LIANZHI_MEDIA_TOKEN':'media-private','OLLAMA_MODELS':'models','PATH':'runtime'})
+        self.assertIn('DB_PASSWORD',env)
+
 
 if __name__ == '__main__':
     unittest.main()

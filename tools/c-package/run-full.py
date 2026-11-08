@@ -65,6 +65,18 @@ def executable(path, label):
     return path
 
 
+def service_environment(env, name):
+    child = env.copy()
+    if name != 'application':
+        for key in list(child):
+            if key.startswith(('DB_', 'SPRING_DATASOURCE_', 'LIANZHI_REDIS_', 'LIANZHI_ARCSOFT_', 'LIANZHI_FACE_')) or key in {
+                    'ADMIN_INITIAL_PASSWORD', 'LIANZHI_OCR_TOKEN', 'LIANZHI_TRANSCRIPTION_TOKEN'}:
+                child.pop(key)
+        if name != 'media':
+            child.pop('LIANZHI_MEDIA_TOKEN', None)
+    return child
+
+
 def java_executable(explicit, env):
     candidates = [explicit] if explicit else []
     if not explicit:
@@ -193,7 +205,7 @@ class Services:
             raise RuntimeError('Service already started: ' + name)
         handle = (self.logs / (name + '.log')).open('a', encoding='utf-8')
         self.handles.append(handle)
-        self.children[name] = subprocess.Popen([str(a) for a in argv], cwd=self.config.folder, env=self.config.env,
+        self.children[name] = subprocess.Popen([str(a) for a in argv], cwd=self.config.folder, env=service_environment(self.config.env, name),
                                               stdout=handle, stderr=subprocess.STDOUT,
                                               creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
 

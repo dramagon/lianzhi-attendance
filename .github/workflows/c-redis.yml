@@ -1,0 +1,58 @@
+name: C真实Redis共享会话验证
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shared-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 验证可选Redis部署组合
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import secrets, subprocess, uuid
+          folder = Path('artifacts') / ('c-redis-config-' + uuid.uuid4().hex[:8])
+          folder.mkdir(parents=True)
+          config = folder / '.env'
+          config.write_text(''.join(k + '=' + secrets.token_hex(24) + '\n' for k in ['DB_PASSWORD','MYSQL_ROOT_PASSWORD','ADMIN_INITIAL_PASSWORD','LIANZHI_REDIS_PASSWORD']))
+          try:
+              subprocess.run(['docker','compose','--env-file',str(config),'-f','deploy/compose.yaml','-f','deploy/compose.redis.yaml','config','--quiet'],check=True)
+          finally:
+              config.unlink(missing_ok=True)
+          PY
+      - name: 确保独立MySQL实例所需程序可用
+        run: |
+          if [ ! -x /usr/sbin/mysqld ] || ! command -v mysql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y mysql-server
+          fi
+      - name: 打包应用
+        working-directory: backend
+        run: ./mvnw -B -ntp -DskipTests package
+      - name: 真实Redis镜像和MySQL、双JVM登录与恢复验收
+        run: >-
+          python scripts/verify-c-redis.py --mysql-bin /usr/bin
+          --redis-image redis:7.4.12-alpine --java "$JAVA_HOME/bin/java"
+          --jar backend/target/lianzhi-backend-0.1.0.jar
+      - name: 保存合成验收结果与服务日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c-redis-session-verification
+          path: |
+            artifacts/c-redis-*/result.json
+            artifacts/c-redis-*/*.log
+            artifacts/c-redis-*/redis/*.log
+            artifacts/c-redis-*/mysql/*.log

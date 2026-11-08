@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7.4.12-alpine
+    user: redis
+    command: [sh, /opt/lianzhi/redis-start.sh]
+    environment:
+      LIANZHI_REDIS_PASSWORD: ${LIANZHI_REDIS_PASSWORD:?Set LIANZHI_REDIS_PASSWORD}
+    volumes:
+      - redis-session-data:/data
+      - ./redis-start.sh:/opt/lianzhi/redis-start.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$LIANZHI_REDIS_PASSWORD" redis-cli -h 127.0.0.1 ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    stop_grace_period: 30s
+    restart: unless-stopped
+  backend:
+    environment:
+      LIANZHI_REDIS_ENABLED: "true"
+      LIANZHI_REDIS_HOST: redis
+      LIANZHI_REDIS_PORT: "6379"
+      LIANZHI_REDIS_PASSWORD: ${LIANZHI_REDIS_PASSWORD:?Set LIANZHI_REDIS_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+volumes:
+  redis-session-data:

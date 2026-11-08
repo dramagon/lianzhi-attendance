@@ -1,5 +1,7 @@
 # 接口与权限约定
 
+可选Redis共享Session已提供显式开关，默认仍为本机Session。登录/CSRF路径和JSESSIONID不变，Redis故障返回503 SESSION_STORE_UNAVAILABLE、data=null；不会回退为本机认证。配置、确认草稿及兼容边界见[C共享会话](modules/c-redis-session.md)。
+
 本人修改密码使用 `POST /api/profile/password`，要求Session与CSRF，成功后所有旧会话失效，详见[A模块](modules/a-api.md)。
 
 2026-11-07 排班及打卡支持WGS84和GCJ02场所。档案保留原坐标，考勤目录返回服务端换算的WGS84场所点，员工仍上报WGS84。范围及数值验证见[B模块说明](modules/b-api.md)。
