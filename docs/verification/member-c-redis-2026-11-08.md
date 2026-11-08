@@ -27,6 +27,8 @@ Windows Java21编译release17；MySQL8.0.41独立新库；Ubuntu24.04 WSL中真�
 
 ## 保留的失败与修正证据
 
+首轮Redis CI的可选Compose校验及应用打包通过，但Ubuntu发行版MySQL在新目录初始化时直接退出，尚未进入应用验收（[失败运行](https://github.com/dramagon/lianzhi-attendance/actions/runs/42477906093)）。CI现改用沿用主部署版本的独占mysql:8.4容器，随机凭据、只映射回环端口、退出删除临时配置；保留全部双JVM业务断言。本机已验证的原生MySQL路径仍可使用，未修改用户的MySQL服务或系统配置。
+
 首轮过期断言直接要求Redis TTL不大于配置3秒，在WSL时钟比Windows慢约0.89秒时观察到TTL4秒而失败（`artifacts/c-redis-a3c2cd936eaf/result.json`）。现同时验证缓存的空闲间隔确为3秒、实测Redis TIME时钟偏差在5秒以内、TTL符合该偏差，并等待实际键消失和HTTP401。通过记录中storedIntervalSeconds=3、observedTtl=4、redisClockSkewSeconds=-0.894。没有延长应用Session配置。
 
 首轮Redis浏览器回归48通过、1失败（`artifacts/c-redis-930def6917f2`）。Playwright请求轨迹显示用例点击退出后立即goto('/login')，中断了获取CSRF的请求，退出POST尚未发送；下一次登录恢复了旧身份。两处切换账号现在先等待退出跳转并断言/api/auth/session为401，再进入登录步骤。保留全部原断言并增加4行等待/401检查；最终49项通过。

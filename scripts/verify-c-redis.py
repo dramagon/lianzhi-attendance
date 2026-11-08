@@ -20,6 +20,7 @@ import urllib.request
 import uuid
 
 from c_disposable_mysql import DisposableMysql, free_port
+from c_disposable_mysql_container import DisposableMysqlContainer
 from c_disposable_redis import DisposableRedis, RedisClient
 from c_http_verification import Client
 
@@ -285,7 +286,8 @@ def verify(apps, database, redis, proof, record):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--mysql-bin',type=Path,required=True)
+    p.add_argument('--mysql-bin',type=Path)
+    p.add_argument('--mysql-image',help='An isolated MySQL Docker image instead of installed server binaries')
     p.add_argument('--redis-server')
     p.add_argument('--redis-image',help='A pinned official image; uses Docker and the deployment startup script')
     p.add_argument('--wsl-distro')
@@ -296,6 +298,7 @@ def main():
     p.add_argument('--browser-only',action='store_true',help='Run only the Redis-enabled browser regression scope')
     p.add_argument('--chromium',type=Path,help='Optional installed Chromium executable for the existing Playwright tests')
     args=p.parse_args()
+    require(bool(args.mysql_bin)!=bool(args.mysql_image),'Provide exactly one of --mysql-bin or --mysql-image')
     require(bool(args.redis_server)!=bool(args.redis_image),'Provide exactly one of --redis-server or --redis-image')
     require(not args.redis_image or not args.wsl_distro,'Docker image mode cannot also use WSL mode')
     folder=ROOT/'artifacts'/('c-redis-'+uuid.uuid4().hex[:12]); folder.mkdir(parents=True)
@@ -309,7 +312,9 @@ def main():
     apps=None
     print('Isolated Redis/MySQL verification: '+str(folder),flush=True)
     try:
-        with DisposableMysql(args.mysql_bin,folder/'mysql') as database, DisposableRedis(args.redis_server,folder/'redis',args.wsl_distro,args.redis_library_directory,args.redis_image) as redis:
+        mysql = (DisposableMysqlContainer(args.mysql_image,folder/'mysql') if args.mysql_image else
+                 DisposableMysql(args.mysql_bin,folder/'mysql'))
+        with mysql as database, DisposableRedis(args.redis_server,folder/'redis',args.wsl_distro,args.redis_library_directory,args.redis_image) as redis:
             env=os.environ.copy()
             env.update(DB_URL='jdbc:mysql://127.0.0.1:'+str(database.port)+'/c_verify?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai',
                        DB_USERNAME='c_verify',DB_PASSWORD=database.password,ADMIN_INITIAL_PASSWORD=secrets.token_hex(20),

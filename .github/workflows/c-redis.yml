@@ -32,18 +32,12 @@ jobs:
           finally:
               config.unlink(missing_ok=True)
           PY
-      - name: 确保独立MySQL实例所需程序可用
-        run: |
-          if [ ! -x /usr/sbin/mysqld ] || ! command -v mysql >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y mysql-server
-          fi
       - name: 打包应用
         working-directory: backend
         run: ./mvnw -B -ntp -DskipTests package
       - name: 真实Redis镜像和MySQL、双JVM登录与恢复验收
         run: >-
-          python scripts/verify-c-redis.py --mysql-bin /usr/bin
+          python scripts/verify-c-redis.py --mysql-image mysql:8.4
           --redis-image redis:7.4.12-alpine --java "$JAVA_HOME/bin/java"
           --jar backend/target/lianzhi-backend-0.1.0.jar
       - name: 保存合成验收结果与服务日志

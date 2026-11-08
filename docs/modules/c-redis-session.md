@@ -64,10 +64,10 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.r
 Linux/Docker环境：
 
 ```sh
-python scripts/verify-c-redis.py --mysql-bin /usr/bin --redis-image redis:7.4.12-alpine --java "$JAVA_HOME/bin/java" --jar backend/target/lianzhi-backend-0.1.0.jar
+python scripts/verify-c-redis.py --mysql-image mysql:8.4 --redis-image redis:7.4.12-alpine --java "$JAVA_HOME/bin/java" --jar backend/target/lianzhi-backend-0.1.0.jar
 ```
 
-脚本创建全新目录的MySQL实例、独占Redis容器和独立Java进程；Windows可改用 `--redis-server <WSL中的Redis路径> --wsl-distro Ubuntu --redis-library-directory <WSL动态库目录>`，或Linux直接传本机Redis可执行文件。它不会连接已有业务库、调用FLUSHDB或停止系统服务。需要MySQL服务端/客户端程序、Redis程序或Docker和Java；默认不下载模型或调用付费服务。
+脚本创建全新目录、仅映射回环端口的MySQL与Redis容器，以及独立Java进程；MySQL镜像沿用主部署的mysql:8.4。已有本机程序时可将 `--mysql-image` 换为 `--mysql-bin <程序目录>`；Windows Redis可改用 `--redis-server <WSL中的Redis路径> --wsl-distro Ubuntu --redis-library-directory <WSL动态库目录>`，或Linux直接传本机Redis可执行文件。它不会连接已有业务库、调用FLUSHDB或停止系统服务。需要MySQL服务端/客户端程序、Redis程序或Docker和Java；默认不下载模型或调用付费服务。
 
 Windows本轮在Ubuntu24.04 WSL中用apt-get download取得Redis及运行库，再通过dpkg-deb解压到项目artifacts/redis-runtime，不执行软件包安装脚本或注册系统服务。对应包为Redis7.0.15的Ubuntu安全修订、libjemalloc2、liblzf1、libatomic1；使用可信Ubuntu仓库校验。其他机器可使用其已安装的Redis或上述固定容器镜像，版本结果写入验收JSON。
 
