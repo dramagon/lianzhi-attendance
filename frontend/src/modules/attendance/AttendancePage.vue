@@ -16,6 +16,7 @@ import http from '../../api'
 import QrScanner from './QrScanner.vue'
 import QrChallenge from './QrChallenge.vue'
 import FaceActions from './FaceActions.vue'
+import PersonalDays from './PersonalDays.vue'
 import { useAuthStore } from '../../stores/auth'
 import { attendancePost, businessDate, statusLabels, timeText } from './api'
 
@@ -748,6 +749,7 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="view === 'records'">
+      <PersonalDays :available="available" />
       <section class="b-card">
         <div class="b-card-title">
           <h2>我的原始打卡事件</h2>
