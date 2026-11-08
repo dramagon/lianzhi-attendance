@@ -946,11 +946,13 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="view === 'face'">
-      <FaceActions :status="face" @changed="load" />
+      <div id="face-enrollment">
+        <FaceActions :status="face" @changed="load" />
+      </div>
       <div class="b-grid">
         <section class="b-card">
           <div class="b-card-title">
-            <h2>设备预览</h2>
+            <h2>摄像头检查（不识别）</h2>
             <span class="tag tag-neutral">不上传图像</span>
           </div>
           <div class="b-camera">
@@ -992,7 +994,7 @@ onUnmounted(() => {
             {{ cameraError }}
           </div>
           <p class="b-small b-description">
-            切换页面、切到后台、撤回勾选或退出本页面时立即释放摄像头。预览不代表人脸检测、比对或活体检测成功。
+            此处只检查摄像头画面。登记人脸请使用上方“本人登记与授权管理”，同意采集并开启采集摄像头后，再点击采集按钮发送给服务器识别。切页或撤回勾选会关闭本机预览。
           </p>
         </section>
         <div>
@@ -1015,10 +1017,13 @@ onUnmounted(() => {
             <p class="b-small b-description">
               {{ face?.message || '正在获取服务端状态；未知状态不会视为可用。' }}
             </p>
-            <button class="button button-secondary b-full" disabled>登记与验证暂不可用</button>
+            <a v-if="face?.available" class="button button-secondary b-full" href="#face-enrollment"
+              >前往本人登记与授权</a
+            >
+            <button v-else class="button button-secondary b-full" disabled>人脸服务未就绪</button>
           </section>
           <section class="b-card">
-            <h2>接入后的验证流程</h2>
+            <h2>人脸验证流程</h2>
             <ol class="b-checklist">
               <li>
                 <span>01</span>
