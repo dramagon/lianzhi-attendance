@@ -30,6 +30,13 @@ lianzhi:
   demo: false
   avatar-directory: ${AVATAR_DIRECTORY:./data/avatars}
   face:
+    arcsoft:
+      enabled: ${LIANZHI_ARCSOFT_ENABLED:false}
+      jar: ${LIANZHI_ARCSOFT_JAR:}
+      native-directory: ${LIANZHI_ARCSOFT_NATIVE_DIRECTORY:}
+      app-id: ${LIANZHI_ARCSOFT_APP_ID:}
+      sdk-key: ${LIANZHI_ARCSOFT_SDK_KEY:}
+      rgb-liveness-threshold: ${LIANZHI_ARCSOFT_RGB_LIVENESS_THRESHOLD:0.8}
     enabled: ${LIANZHI_FACE_ENABLED:false}
     required-for-punch: ${LIANZHI_FACE_REQUIRED:false}
     encryption-key: ${LIANZHI_FACE_ENCRYPTION_KEY:}

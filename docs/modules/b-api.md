@@ -48,6 +48,8 @@ GCJ02范围限经度72.024～137.8147、纬度0.8493～55.8071，边缘和范围
 | POST `/face/challenges` | JSON `{token,requestId,type}`；复核本人绑定/正式排班和二维码，返回id/expiresAt（30秒） |
 | POST `/face/verification` | multipart challengeId、image、consent=true；实际SDK校验，返回verified、verificationId或null、expiresAt、message；失败最多3次 |
 
+2026-11-08新增可选Windows x64 ArcFace 3.0服务端适配器，接口形状不变。授权及引擎实际初始化成功后，status可报告SDK能力；`available`仍同时取决于存储、稳定加密密钥、已明确校准的身份阈值等条件。初始化成功不代表本人比对或活体已经验收，未校准时继续关闭登记/验证。配置、实际结果及本机摄像头分数工具见[b-face-integration.md](b-face-integration.md)。
+
 Schedule请求：
 
 ```json
