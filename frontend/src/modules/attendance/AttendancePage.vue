@@ -34,6 +34,11 @@ const now = ref(new Date()),
   token = ref(''),
   punchType = ref('IN')
 const faceProof = ref(null)
+const faceEnrollmentActions = ref(null)
+function openFaceEnrollment() {
+  stopCamera()
+  faceEnrollmentActions.value?.focusCollection()
+}
 const faceRequired = computed(
   () => face.value?.punchRequired === true || workplaces.value.some((place) => place.faceRequired),
 )
@@ -947,7 +952,7 @@ onUnmounted(() => {
 
     <template v-else-if="view === 'face'">
       <div id="face-enrollment">
-        <FaceActions :status="face" @changed="load" />
+        <FaceActions ref="faceEnrollmentActions" :status="face" @changed="load" />
       </div>
       <div class="b-grid">
         <section class="b-card">
@@ -1017,9 +1022,14 @@ onUnmounted(() => {
             <p class="b-small b-description">
               {{ face?.message || '正在获取服务端状态；未知状态不会视为可用。' }}
             </p>
-            <a v-if="face?.available" class="button button-secondary b-full" href="#face-enrollment"
-              >前往本人登记与授权</a
+            <button
+              v-if="face?.available"
+              class="button button-secondary b-full"
+              aria-controls="face-enrollment"
+              @click="openFaceEnrollment"
             >
+              前往本人登记与授权
+            </button>
             <button v-else class="button button-secondary b-full" disabled>人脸服务未就绪</button>
           </section>
           <section class="b-card">

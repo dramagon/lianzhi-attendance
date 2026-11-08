@@ -54,7 +54,7 @@ test('真实未配置服务关闭登记采集，不把本机预览当识别', as
   expect(status.storageAvailable).toBe(true)
   expect([status.detection, status.comparison, status.liveness]).toEqual([false, false, false])
   await expect(page.getByRole('button', { name: '人脸服务未就绪', exact: true })).toBeDisabled()
-  await expect(page.getByRole('link', { name: '前往本人登记与授权', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '前往本人登记与授权', exact: true })).toHaveCount(0)
   expect(status.enrolled).toBe(false)
   const csrf = (await (await page.request.get('/api/auth/csrf')).json()).data
   const response = await page.request.post('/api/face/enrollment', {
@@ -99,8 +99,18 @@ test('登记更新删除的界面契约：真实采集JPEG、版本更新、明�
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/attendance/face')
   await expect(page.getByText('登记与验证暂不可用', { exact: true })).toHaveCount(0)
-  await page.getByRole('link', { name: '前往本人登记与授权', exact: true }).click()
-  await expect(page).toHaveURL(/\/attendance\/face#face-enrollment$/)
+  await page.getByRole('button', { name: '前往本人登记与授权', exact: true }).click()
+  await expect(page).toHaveURL(/\/attendance\/face$/)
+  const consent = page.getByRole('checkbox', {
+    name: '我同意本次采集、服务端识别和加密特征处理',
+    exact: true,
+  })
+  await expect(consent).toBeFocused()
+  await expect(consent).not.toBeChecked()
+  await expect(
+    page.getByText('请先勾选下方采集同意，再开启采集摄像头。', { exact: true }),
+  ).toBeVisible()
+  expect(methods).toEqual([])
   await expect(
     page.getByRole('heading', { name: '本人登记与授权管理', exact: true }),
   ).toBeInViewport()

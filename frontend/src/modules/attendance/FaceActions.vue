@@ -14,8 +14,36 @@ const consent = ref(false),
   busy = ref(false),
   error = ref(''),
   message = ref(''),
-  video = ref(null)
+  video = ref(null),
+  collectionSection = ref(null),
+  consentInput = ref(null),
+  cameraButton = ref(null),
+  captureButton = ref(null),
+  guided = ref(false)
 const available = computed(() => props.status?.available === true && !props.disabled)
+const collectionGuide = computed(() => {
+  if (busy.value) return '正在处理本次采集，请稍候。'
+  if (!consent.value) return '请先勾选下方采集同意，再开启采集摄像头。'
+  if (cameraBusy.value) return '请在浏览器提示中允许使用摄像头。'
+  if (!active.value) return '已勾选采集同意，请点击“开启采集摄像头”。'
+  return '画面已就绪，请点击下方采集按钮进行服务端识别。'
+})
+async function focusCollection() {
+  if (!available.value) return
+  guided.value = true
+  await nextTick()
+  if (disposed || !available.value) return
+  collectionSection.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const target = busy.value
+    ? collectionSection.value
+    : !consent.value
+      ? consentInput.value
+      : active.value
+        ? captureButton.value
+        : cameraButton.value
+  target?.focus({ preventScroll: true })
+}
+defineExpose({ focusCollection })
 let stream,
   disposed = false,
   cameraRevision = 0,
@@ -197,22 +225,30 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <section class="face-actions">
+  <section
+    ref="collectionSection"
+    class="face-actions"
+    :class="{ 'collection-highlight': guided }"
+    tabindex="-1"
+  >
     <h2>{{ mode === 'verify' ? '本次打卡人脸验证' : '本人登记与授权管理' }}</h2>
     <p>{{ status?.enrolled ? `已登记 · 版本 ${status.revision}` : '尚未登记本人特征' }}</p>
     <p>
       主动采集后，图像会通过安全连接发送到服务器，由实际SDK校验单人、质量、活体与身份；原图仅用于本次处理，不作业务留存，特征加密保存。可删除特征并撤销未使用的验证。
     </p>
     <p v-if="!status?.available">{{ status?.message || '人脸服务未就绪，采集不可用' }}</p>
+    <p v-if="guided && available" class="collection-guide" role="status">{{ collectionGuide }}</p>
     <label
       ><input
         type="checkbox"
+        ref="consentInput"
         v-model="consent"
         :disabled="!available || busy"
       />我同意本次采集、服务端识别和加密特征处理</label
     >
     <div class="actions">
       <button
+        ref="cameraButton"
         class="button button-secondary"
         :disabled="!available || !consent || cameraBusy || active || busy"
         @click="start"
@@ -226,6 +262,7 @@ onUnmounted(() => {
     <video v-if="active" ref="video" muted autoplay playsinline aria-label="人脸采集画面" />
     <div class="actions">
       <button
+        ref="captureButton"
         class="button button-primary"
         :disabled="
           !available || !consent || !active || busy || (mode === 'verify' && !status?.enrolled)
@@ -274,6 +311,18 @@ onUnmounted(() => {
   background: white;
   margin-bottom: 22px;
   min-width: 0;
+}
+.collection-highlight {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+  scroll-margin: 90px;
+}
+.collection-guide {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
 }
 h2 {
   font-size: 16px;
