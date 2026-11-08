@@ -1,5 +1,7 @@
 # C任务：统计报表、知识库与AI助手
 
+当前阶段（2026-11-08）：按[云端C收尾任务](cloud-c.md)与[共同安排](cloud-integration-2026-11-08.md)实施。以A最新整合分支为基线，保留已跑通的真实AI和报表；下文为原始分阶段职责，不要求重新开发已验证的功能。
+
 先读取AGENTS.md、docs/team/README.md、docs/team/contracts.md，核对最新main。保留Session、CSRF和角色范围。首轮分支：codex/member-c-intelligence。
 
 ## 第一小阶段：知识库与检索

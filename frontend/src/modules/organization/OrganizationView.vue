@@ -584,7 +584,7 @@ onMounted(async () => {
             </button>
           </div>
           <p class="muted org-bindings">
-            当前打卡仅支持WGS84场所。设备位置为WGS84，高德选点为GCJ02；GCJ02或BD09可存档，但目前不能用于排班打卡，请提供经过核对的WGS84坐标。
+            设备位置为WGS84，高德选点为GCJ02，两者均可用于排班打卡。GCJ02由服务端换算后校验距离，请核对真实办公位置。BD09场所请先提供WGS84或GCJ02坐标。
           </p></template
         >
         <label

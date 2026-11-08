@@ -35,9 +35,16 @@ const now = ref(new Date()),
   token = ref(''),
   punchType = ref('IN')
 const faceProof = ref(null)
+const useFaceForPunch = ref(false)
+const faceEnrollmentActions = ref(null)
+function openFaceEnrollment() {
+  stopCamera()
+  faceEnrollmentActions.value?.focusCollection()
+}
 const faceRequired = computed(
   () => face.value?.punchRequired === true || workplaces.value.some((place) => place.faceRequired),
 )
+const faceSelected = computed(() => faceRequired.value || useFaceForPunch.value)
 const faceProofFresh = computed(
   () => !!faceProof.value && Date.parse(faceProof.value.expiresAt) > now.value.getTime(),
 )
@@ -102,7 +109,7 @@ const canPunch = computed(
     locationFresh.value &&
     !punching.value &&
     !pendingPunch.value &&
-    (!faceRequired.value || faceProofFresh.value),
+    (!faceSelected.value || faceProofFresh.value),
 )
 // Only a request identifier is kept in this tab, never a QR token, coordinates or image.
 const pendingKey = `lianzhi.b.pending-punch.${auth.user.id}`
@@ -300,6 +307,7 @@ function newPunchRequest() {
   requestId.value = token.value.trim() ? crypto.randomUUID() : null
 }
 watch([token, punchType], newPunchRequest)
+watch(faceSelected, newPunchRequest)
 function locate() {
   if (punching.value || pendingPunch.value) return
   const revision = ++locationRevision
@@ -349,6 +357,7 @@ async function punch() {
     return
   punching.value = true
   feedback.value = ''
+  const usedFaceVerification = faceSelected.value && faceProofFresh.value
   try {
     requestId.value ||= crypto.randomUUID()
     rememberPending({ requestId: requestId.value, type: punchType.value })
@@ -362,12 +371,12 @@ async function punch() {
         coordinateSystem: 'WGS84',
       },
       accuracyMeters: location.value.accuracy,
-      faceVerificationId: faceProof.value?.verificationId || null,
+      faceVerificationId: faceSelected.value ? faceProof.value?.verificationId || null : null,
     })
     if (disposed) return
     rememberPending(null)
     token.value = ''
-    feedback.value = `打卡成功 · ${timeText(event.occurredAt)}，可在考勤记录查看。`
+    feedback.value = `打卡成功${usedFaceVerification ? ' · 本次已通过人脸验证' : ''} · ${timeText(event.occurredAt)}，可在考勤记录查看。`
   } catch (e) {
     // A transport error or server failure leaves the outcome unknown. A 4xx is authoritative.
     if (disposed) return
@@ -601,7 +610,7 @@ onUnmounted(() => {
             <div>
               <b>{{
                 available
-                  ? workplaces[0]?.name || '请联系管理员绑定有效WGS84场所'
+                  ? workplaces[0]?.name || '请联系管理员绑定有效办公场所'
                   : '尚未绑定可用办公场所'
               }}</b>
               <p>
@@ -635,19 +644,40 @@ onUnmounted(() => {
             />
           </label>
           <QrScanner v-if="available && !punching && !pendingPunch" @scanned="token = $event" />
+          <div v-if="face?.available && !faceRequired" class="b-face-option">
+            <label class="b-checkbox">
+              <input
+                v-model="useFaceForPunch"
+                type="checkbox"
+                :disabled="!face.enrolled || punching || !!pendingPunch"
+              />本次打卡使用人脸识别
+            </label>
+            <p class="b-small">
+              {{
+                face.enrolled
+                  ? '勾选后须通过本人比对和活体检测，才能提交本次打卡。'
+                  : '使用人脸识别前，请先登记本人特征。'
+              }}
+              <RouterLink v-if="!face.enrolled" to="/attendance/face">前往人脸登记</RouterLink>
+            </p>
+          </div>
           <FaceActions
-            v-if="faceRequired"
+            v-if="faceSelected"
             mode="verify"
             :status="face"
             :context="{ token: token.trim(), requestId, type: punchType }"
-            :disabled="punching || !!pendingPunch"
+            :disabled="punching || !!pendingPunch || !token.trim() || !locationFresh"
             @verified="faceProof = $event"
           />
-          <p v-if="faceRequired" class="b-small">
+          <p v-if="faceSelected" class="b-small">
             {{
-              faceProofFresh
-                ? '本次人脸凭据有效，可提交打卡'
-                : '本次打卡需要服务端人脸验证；未就绪或凭据过期时不能提交'
+              !token.trim()
+                ? '请先扫描或填写有效场所二维码，再进行人脸验证。'
+                : !locationFresh
+                  ? '请先获取当前位置，再开启人脸验证摄像头。'
+                  : faceProofFresh
+                    ? '本次人脸凭据有效，可提交打卡'
+                    : '请勾选采集同意，开启采集摄像头，再点击“采集并验证本次打卡”。未通过或凭据过期时不能提交。'
             }}
           </p>
           <button class="b-punch-button" :disabled="!canPunch" @click="punch">
@@ -948,11 +978,13 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="view === 'face'">
-      <FaceActions :status="face" @changed="load" />
+      <div id="face-enrollment">
+        <FaceActions ref="faceEnrollmentActions" :status="face" @changed="load" />
+      </div>
       <div class="b-grid">
         <section class="b-card">
           <div class="b-card-title">
-            <h2>设备预览</h2>
+            <h2>摄像头检查（不识别）</h2>
             <span class="tag tag-neutral">不上传图像</span>
           </div>
           <div class="b-camera">
@@ -994,7 +1026,7 @@ onUnmounted(() => {
             {{ cameraError }}
           </div>
           <p class="b-small b-description">
-            切换页面、切到后台、撤回勾选或退出本页面时立即释放摄像头。预览不代表人脸检测、比对或活体检测成功。
+            此处只检查摄像头画面。登记人脸请使用上方“本人登记与授权管理”，同意采集并开启采集摄像头后，再点击采集按钮发送给服务器识别。切页或撤回勾选会关闭本机预览。
           </p>
         </section>
         <div>
@@ -1017,10 +1049,18 @@ onUnmounted(() => {
             <p class="b-small b-description">
               {{ face?.message || '正在获取服务端状态；未知状态不会视为可用。' }}
             </p>
-            <button class="button button-secondary b-full" disabled>登记与验证暂不可用</button>
+            <button
+              v-if="face?.available"
+              class="button button-secondary b-full"
+              aria-controls="face-enrollment"
+              @click="openFaceEnrollment"
+            >
+              前往本人登记与授权
+            </button>
+            <button v-else class="button button-secondary b-full" disabled>人脸服务未就绪</button>
           </section>
           <section class="b-card">
-            <h2>接入后的验证流程</h2>
+            <h2>人脸验证流程</h2>
             <ol class="b-checklist">
               <li>
                 <span>01</span>

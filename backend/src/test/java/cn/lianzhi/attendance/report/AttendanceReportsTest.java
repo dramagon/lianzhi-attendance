@@ -19,7 +19,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties="spring.datasource.url=${LIANZHI_C_REPORT_TEST_URL:jdbc:h2:mem:c-reports;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}")
+@SpringBootTest(properties="spring.datasource.url=${LIANZHI_REPORT_TEST_URL:${LIANZHI_C_REPORT_TEST_URL:jdbc:h2:mem:c-reports;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}}")
 @ActiveProfiles("test") @AutoConfigureMockMvc @Transactional
 class AttendanceReportsTest {
     @Autowired AttendanceReports reports;@Autowired AttendanceDays days;@Autowired AttendanceSchedules schedules;@Autowired JdbcTemplate jdbc;@Autowired MockMvc mvc;

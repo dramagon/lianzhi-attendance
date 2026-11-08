@@ -17,14 +17,14 @@ public class OrganizationAttendanceDirectory implements AttendanceDirectory {
     public OrganizationAttendanceDirectory(WorkplaceService workplaces,WorkplaceMapper mapper,DataScope scope,AttendanceSchedules schedules,AttendanceDays days) {this.workplaces=workplaces;this.mapper=mapper;this.scope=scope;this.schedules=schedules;this.days=days;}
     private org.springframework.security.core.Authentication actor(){return SecurityContextHolder.getContext().getAuthentication();}
     private Workplace convert(WorkplaceView w) {
-        return new Workplace(w.id(),w.name(),new GeoFence.Point(w.latitude().doubleValue(),w.longitude().doubleValue(),w.coordinateSystem()),w.radiusMeters(),false);
+        return new Workplace(w.id(),w.name(),WorkplaceCoordinates.toWgs84(w.latitude().doubleValue(),w.longitude().doubleValue(),w.coordinateSystem()),w.radiusMeters(),false);
     }
     public List<Workplace> workplaces(long user) {
-        return workplaces.activeForEmployee(actor(),user).stream().filter(w->"WGS84".equals(w.coordinateSystem())).map(this::convert).toList();
+        return workplaces.activeForEmployee(actor(),user).stream().filter(w->WorkplaceCoordinates.supported(w.coordinateSystem())).map(this::convert).toList();
     }
     public List<Workplace> managedWorkplaces(long user) {
         scope.manager(actor());if(scope.actor(actor()).id()!=user)throw new org.springframework.security.access.AccessDeniedException("身份不匹配");
-        return workplaces.list(actor(),null,1,100).items().stream().filter(w->w.enabled() && "WGS84".equals(w.coordinateSystem())).map(this::convert).toList();
+        return workplaces.list(actor(),null,1,100).items().stream().filter(w->w.enabled() && WorkplaceCoordinates.supported(w.coordinateSystem())).map(this::convert).toList();
     }
     public Assignment forPunch(long user,long place,Instant now) {
         if(scope.actor(actor()).id()!=user)throw new org.springframework.security.access.AccessDeniedException("只能本人打卡");

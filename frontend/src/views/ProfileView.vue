@@ -4,11 +4,41 @@ import { CircleCheckFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import http, { write } from '../api'
 import UserAvatar from '../components/UserAvatar.vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const auth = useAuthStore()
 const user = ref(null)
 const employee = ref(null)
 const workplaces = ref([])
 const error = ref('')
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordBusy = ref(false)
+const passwordError = ref('')
+async function changePassword() {
+  if (passwordBusy.value || avatarBusy.value) return
+  passwordError.value = ''
+  if (newPassword.value !== confirmPassword.value) {
+    passwordError.value = '两次新密码输入不一致'
+    return
+  }
+  passwordBusy.value = true
+  try {
+    await write('post', '/profile/password', {
+      currentPassword: currentPassword.value,
+      newPassword: newPassword.value,
+      confirmPassword: confirmPassword.value,
+    })
+    currentPassword.value = newPassword.value = confirmPassword.value = ''
+    auth.discard()
+    await router.replace('/login?passwordChanged=1')
+  } catch (e) {
+    passwordError.value = e.message
+  } finally {
+    passwordBusy.value = false
+  }
+}
 const avatarInput = ref(null)
 const avatarFile = ref(null)
 const avatarPreview = ref('')
@@ -38,7 +68,7 @@ function chooseAvatar(event) {
   avatarPreview.value = URL.createObjectURL(file)
 }
 async function saveAvatar(remove = false) {
-  if (avatarBusy.value || (!remove && !avatarFile.value)) return
+  if (passwordBusy.value || avatarBusy.value || (!remove && !avatarFile.value)) return
   avatarBusy.value = true
   avatarError.value = ''
   avatarSuccess.value = ''
@@ -99,23 +129,31 @@ onUnmounted(clearPreview)
           type="file"
           accept="image/jpeg,image/png"
           aria-label="选择头像文件"
-          :disabled="avatarBusy"
+          :disabled="avatarBusy || passwordBusy"
           @change="chooseAvatar"
         />
-        <button class="button button-secondary" :disabled="avatarBusy" @click="avatarInput.click()">
+        <button
+          class="button button-secondary"
+          :disabled="avatarBusy || passwordBusy"
+          @click="avatarInput.click()"
+        >
           选择头像
         </button>
         <template v-if="avatarFile"
-          ><button class="button button-primary" :disabled="avatarBusy" @click="saveAvatar(false)">
+          ><button
+            class="button button-primary"
+            :disabled="avatarBusy || passwordBusy"
+            @click="saveAvatar(false)"
+          >
             {{ avatarBusy ? '正在上传…' : '保存头像' }}</button
-          ><button class="text-button" :disabled="avatarBusy" @click="clearPreview">
+          ><button class="text-button" :disabled="avatarBusy || passwordBusy" @click="clearPreview">
             取消
           </button></template
         >
         <button
           v-else-if="user.avatarUrl"
           class="text-button"
-          :disabled="avatarBusy"
+          :disabled="avatarBusy || passwordBusy"
           @click="saveAvatar(true)"
         >
           恢复默认头像
@@ -169,15 +207,74 @@ onUnmounted(clearPreview)
         <div class="permission-tags">
           <span class="tag tag-neutral">工作台</span
           ><span v-if="auth.can('accounts:read')" class="tag tag-neutral">系统账号查询</span
-          ><span class="tag tag-neutral">个人信息</span
-          ><span class="tag tag-neutral">建设进度</span>
+          ><span class="tag tag-neutral">个人信息</span>
         </div>
       </div>
     </section>
   </div>
   <p v-else class="muted">正在加载个人信息…</p>
+  <section v-if="user" class="panel password-panel" aria-label="修改密码">
+    <h2>修改密码</h2>
+    <p class="muted">修改后需要重新登录，其他设备的登录也会失效。</p>
+    <p v-if="passwordError" class="notice notice-error" role="alert">{{ passwordError }}</p>
+    <form class="password-form" @submit.prevent="changePassword">
+      <label
+        >当前密码<input
+          v-model="currentPassword"
+          type="password"
+          autocomplete="current-password"
+          required
+          maxlength="72"
+          :disabled="passwordBusy"
+      /></label>
+      <label
+        >新密码<input
+          v-model="newPassword"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="4"
+          maxlength="72"
+          :disabled="passwordBusy"
+      /></label>
+      <label
+        >确认新密码<input
+          v-model="confirmPassword"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="4"
+          maxlength="72"
+          :disabled="passwordBusy"
+      /></label>
+      <button class="button button-primary" :disabled="passwordBusy || avatarBusy">
+        {{ passwordBusy ? '正在修改…' : '修改密码并重新登录' }}
+      </button>
+    </form>
+  </section>
 </template>
 <style scoped>
+.password-panel {
+  padding: 24px;
+  margin-top: 24px;
+}
+.password-form {
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+  margin-top: 16px;
+}
+.password-form label {
+  display: grid;
+  gap: 8px;
+}
+.password-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
 .profile-avatar-actions {
   display: flex;
   flex-wrap: wrap;

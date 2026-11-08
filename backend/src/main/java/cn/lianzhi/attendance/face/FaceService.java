@@ -74,13 +74,18 @@ public class FaceService implements FaceAttendancePort {
             return p;
         } catch(RuntimeException e) { return null; }
     }
+    private String sdkDiagnostic() {
+        var all=providers.orderedStream().toList();
+        if(all.size()==1 && all.get(0) instanceof ArcSoftFaceProvider arcsoft) return arcsoft.capabilities().message();
+        return "虹软SDK与官方授权适配器尚未接入，检测、比对和活体不可用";
+    }
     public Status status(long user) {
         boolean storage=schemaReady(); Stored stored=storage ? stored(user) : null;
         FaceProvider p=enabled ? provider() : null;
         boolean sdk=p!=null, policy=Double.isFinite(minimumScore) && minimumScore>0 && minimumScore<1;
         boolean available=enabled && sdk && storage && cipher.ready() && policy;
         String message=!enabled ? "人脸功能尚未启用；不会采集或上传人脸数据"
-            : !sdk ? "虹软SDK与官方授权适配器尚未接入，检测、比对和活体不可用"
+            : !sdk ? sdkDiagnostic()
             : !storage ? "等待按顺序发布V4、V5，当前不能登记或验证"
             : !cipher.ready() ? "人脸加密密钥未正确配置，禁止保存特征"
             : !policy ? "尚未配置经实际SDK校准的比对阈值"

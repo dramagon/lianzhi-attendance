@@ -9,7 +9,10 @@ async function login(page, role) {
 
 test('管理员登录、账号筛选、刷新保留会话、退出后失去权限', async ({ page }) => {
   await login(page, '管理员')
-  await expect(page.getByRole('heading', { name: '演示管理员，欢迎回来' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '管理员一，欢迎回来' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '建设进度' })).toHaveCount(0)
+  await page.goto('/roadmap')
+  await expect(page).toHaveURL(/\/workbench$/)
   await page.getByRole('link', { name: '系统账号' }).first().click()
   // A1允许持久新增员工；按真实API数量校验，保留账号筛选和刷新回归。
   const response = await page.request.get('/api/admin/accounts')
@@ -19,7 +22,7 @@ test('管理员登录、账号筛选、刷新保留会话、退出后失去权�
   await expect(page.locator('tbody tr')).toHaveCount(count)
   await page.getByRole('textbox', { name: '搜索账号' }).fill('DEMO003')
   await expect(page.locator('tbody tr')).toHaveCount(1)
-  await expect(page.locator('tbody')).toContainText('演示员工')
+  await expect(page.locator('tbody')).toContainText('员工一')
   await page.reload()
   await expect(page).toHaveURL(/\/accounts$/)
   await expect(page.locator('tbody tr')).toHaveCount(count)

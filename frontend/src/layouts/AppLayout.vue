@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   House,
@@ -18,14 +18,12 @@ import { ElMessage } from 'element-plus'
 import BrandMark from '../components/BrandMark.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
-import http from '../api'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const open = ref(false)
 const signingOut = ref(false)
-const info = ref(null)
 const navigation = [
   { path: '/workbench', name: '工作台', icon: House },
   { path: '/accounts', name: '系统账号', icon: UserFilled, permission: 'accounts:read' },
@@ -42,7 +40,6 @@ const navigation = [
   { path: '/profile', name: '个人信息', icon: User },
   { path: '/approvals', name: '我的申请', icon: Calendar, permission: 'approvals:read' },
   { path: '/approvals/review', name: '审批工作台', icon: List, permission: 'approvals:manage' },
-  { path: '/roadmap', name: '建设进度', icon: List },
 ]
 watch(
   () => route.path,
@@ -50,13 +47,6 @@ watch(
     open.value = false
   },
 )
-onMounted(async () => {
-  try {
-    info.value = await http.get('/system/info')
-  } catch (e) {
-    ElMessage.error(e.message)
-  }
-})
 async function signOut() {
   if (signingOut.value) return
   signingOut.value = true
@@ -85,9 +75,7 @@ async function signOut() {
       </button>
       <div class="workspace-pill">
         <span class="workspace-avatar">联</span>
-        <div>
-          <b>联智考勤</b><small>{{ info?.demo ? '本地演示工作空间' : '企业工作空间' }}</small>
-        </div>
+        <div><b>联智考勤</b><small>企业工作空间</small></div>
       </div>
       <nav aria-label="主导航">
         <p class="nav-label">工作空间</p>
@@ -101,9 +89,7 @@ async function signOut() {
             ><ArrowRight class="nav-arrow" /></RouterLink
         ></template>
       </nav>
-      <div class="sidebar-bottom">
-        <span class="status-dot"></span>第 1 阶段 · 系统基础<span>v0.1</span>
-      </div>
+      <div class="sidebar-bottom"><span class="status-dot"></span>联智企业工作空间</div>
     </aside>
     <div class="app-main">
       <header class="topbar">
@@ -119,8 +105,7 @@ async function signOut() {
           ><b>{{ route.meta.title }}</b>
         </div>
         <div class="topbar-right">
-          <span v-if="info?.demo" class="tag tag-outline demo-badge">演示环境</span
-          ><RouterLink to="/profile" class="topbar-user"
+          <RouterLink to="/profile" class="topbar-user"
             ><UserAvatar :user="auth.user" /> <span>{{ auth.user?.displayName }}</span></RouterLink
           ><button
             class="icon-button logout-button"

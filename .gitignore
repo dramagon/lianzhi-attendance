@@ -12,6 +12,8 @@
 .DS_Store
 Thumbs.db
 artifacts/
+# ArcSoft creates its device activation cache in the process working directory.
+ArcFace*.dat
 test-results/
 playwright-report/
 **/__pycache__/

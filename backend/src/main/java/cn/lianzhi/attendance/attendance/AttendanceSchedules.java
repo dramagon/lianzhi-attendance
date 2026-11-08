@@ -35,7 +35,8 @@ public class AttendanceSchedules {
         if(schedule==null || schedule.businessDate()==null || schedule.rule()==null)throw new IllegalArgumentException("请填写员工、业务日期和班次");
         var employee=employees.get(actor,schedule.userId());
         if(!employee.enabled() || employee.companyId()==null)throw new IllegalArgumentException("员工须启用且归属有效公司");
-        if(workplaces.activeForEmployee(actor,schedule.userId()).stream().noneMatch(w->w.id()==schedule.workplaceId()))throw new IllegalArgumentException("员工尚未绑定该有效场所");
+        var workplace=workplaces.activeForEmployee(actor,schedule.userId()).stream().filter(w->w.id()==schedule.workplaceId()).findFirst().orElseThrow(()->new IllegalArgumentException("员工尚未绑定该有效场所"));
+        WorkplaceCoordinates.toWgs84(workplace.latitude().doubleValue(),workplace.longitude().doubleValue(),workplace.coordinateSystem());
         if(schedule.businessDate().isBefore(LocalDate.now(AttendanceRules.ZONE)))throw new IllegalArgumentException("不能改写过去日期的正式排班");
         jdbc.queryForObject("SELECT id FROM sys_user WHERE id=? FOR UPDATE",Long.class,schedule.userId());
         if(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_event WHERE user_id=? AND business_date=?",Long.class,schedule.userId(),schedule.businessDate())>0)

@@ -136,7 +136,9 @@ onMounted(load)
           ? '离线原文摘录（非生成式AI）'
           : capability.modelConfiguration === 'NOT_CONFIGURED'
             ? '未配置'
-            : '已配置，尚待验证'
+            : answer?.state === 'ANSWERED'
+              ? '模型已响应'
+              : '已配置，等待提问'
       }}；OCR：{{
         capability.ocrConfiguration === 'NOT_CONFIGURED' ? '未配置' : '已配置，尚待验证'
       }}；转写：{{

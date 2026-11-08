@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
     </button>
     <div v-if="preview" class="notice" role="status">
       <p>地图位置预览（GCJ02）：{{ preview.latitude }}，{{ preview.longitude }}。</p>
-      <p>高德坐标目前不能直接用于排班打卡。采用将替换表单中的坐标和坐标系，仍须保存后才会落库。</p>
+      <p>采用后填入GCJ02坐标，保存并绑定员工后可排班。服务端换算坐标后校验打卡距离。</p>
       <button type="button" class="button button-secondary" @click="usePoint">采用地图位置</button>
       <button type="button" class="button button-secondary" @click="showSaved">放弃地图位置</button>
     </div>

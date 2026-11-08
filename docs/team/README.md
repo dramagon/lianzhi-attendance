@@ -1,5 +1,7 @@
 # 三人分工与 Codex 交接
 
+2026-11-08当前安排：B、C在云端继续开发，A在Windows本机最终整合与真实设备验收。先读[本轮共同基线与文件边界](cloud-integration-2026-11-08.md)，再读[B云端任务](cloud-b.md)或[C云端任务](cloud-c.md)。最新代码在 `codex/member-a-release-validation`，旧main不是当前完整功能基线。下面2026-10-26首轮背景及阶段完成状态属历史，以最新任务与验收记录为准。
+
 确定日期：2026-10-26。按大致工作量平均划分，不按擅长方向分工。A为仓库持有人，B、C为两位组员，可直接替换为真实姓名。
 
 仓库：https://github.com/dramagon/lianzhi-attendance （目前私有）。起始代码提交：`e497c0c21c7ab080a18b4ae9f322b5b1d938e22c`。登录、三角色权限、管理工作台、员工首页和账号查询已实现，后端10项、浏览器5项测试及对应GitHub Actions均已通过。后续业务模块尚未实现。

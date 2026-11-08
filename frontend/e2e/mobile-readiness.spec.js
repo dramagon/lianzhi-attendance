@@ -54,12 +54,12 @@ test('快速切换员工时，旧场所响应不能覆盖新员工', async ({ pa
   await page.getByLabel('员工', { exact: true }).selectOption('901')
   await expect.poll(() => requested).toBe(true)
   await page.getByLabel('员工', { exact: true }).selectOption('902')
-  await expect(page.getByLabel('有效绑定场所（WGS84）', { exact: true })).toHaveValue('902')
+  await expect(page.getByLabel('有效绑定场所（WGS84 / GCJ02）', { exact: true })).toHaveValue('902')
   const response = page.waitForResponse((r) => r.url().endsWith('/employees/901/workplaces'))
   release()
   await response
   await page.evaluate(() => new Promise(requestAnimationFrame))
-  await expect(page.getByLabel('有效绑定场所（WGS84）', { exact: true })).toHaveValue('902')
+  await expect(page.getByLabel('有效绑定场所（WGS84 / GCJ02）', { exact: true })).toHaveValue('902')
   await expect(page.getByRole('option', { name: '场所901', exact: true })).toHaveCount(0)
 })
 

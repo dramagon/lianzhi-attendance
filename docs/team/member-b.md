@@ -1,5 +1,7 @@
 # B任务：考勤、二维码定位与人脸识别
 
+当前阶段（2026-11-08）：按[云端B收尾任务](cloud-b.md)与[共同安排](cloud-integration-2026-11-08.md)实施。先整合A最新个人分支，保留B原有未合入提交；下文为原始分阶段职责，不代表当前虹软适配器仍未实现。
+
 先读取AGENTS.md、docs/team/README.md、docs/team/contracts.md，核对main与A提供的数据接口。保留已有身份认证。首轮分支：codex/member-b-attendance。
 
 ## 第一小阶段：规则与打卡

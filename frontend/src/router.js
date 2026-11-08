@@ -41,8 +41,7 @@ const router = createRouter({
         },
         {
           path: 'roadmap',
-          component: () => import('./views/RoadmapView.vue'),
-          meta: { title: '建设进度', permission: 'roadmap:read' },
+          redirect: '/workbench',
         },
         {
           path: 'forbidden',

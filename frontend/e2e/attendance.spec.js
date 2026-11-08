@@ -124,5 +124,5 @@ test('手机四个考勤页无横向溢出，刷新保留会话，未登录不�
   }
   await page.reload()
   await expect(page).toHaveURL(/\/attendance\/face$/)
-  await expect(page.getByRole('heading', { name: '设备预览' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '摄像头检查（不识别）' })).toBeVisible()
 })

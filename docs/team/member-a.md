@@ -1,5 +1,7 @@
 # A任务：组织、员工、场所与审批
 
+当前阶段（2026-11-08）：用户确定B/C云端开发、A本机最终整合，按[共同安排](cloud-integration-2026-11-08.md)执行。A协调公共架构与Nacos/OpenFeign实际接线、迁移和根配置合并，并完成Windows真实SDK、正式MySQL组合、手机现场及最终发布；云端交付不能代替本机验收。
+
 先读取AGENTS.md、docs/team/README.md、docs/team/contracts.md，核对最新main，保留现有登录、Session和权限。首轮分支：codex/member-a-organization。
 
 ## 第一小阶段：组织与公共接口

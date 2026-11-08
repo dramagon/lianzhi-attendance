@@ -99,8 +99,8 @@ public class AttendanceService {
         if ("OUT".equals(request.type) && adjustedIn==null && events.stream().noneMatch(e -> e.type().equals("IN")))
             throw new IllegalArgumentException("请先完成本班次上班打卡");
         if (events.stream().anyMatch(e -> !clock.instant().isAfter(e.occurredAt()))) throw new IllegalArgumentException("签退时间须晚于签到");
-        if(assignment.workplace().faceRequired() || (faces!=null && faces.requiredForPunch())) {
-            if(faces==null) throw AttendanceProblem.unavailable("该场所要求真实人脸验证，当前人脸能力尚未接入");
+        if(assignment.workplace().faceRequired() || (faces!=null && faces.requiredForPunch()) || request.faceVerificationId!=null) {
+            if(faces==null) throw AttendanceProblem.unavailable("人脸验证能力尚未接入，不能校验本次人脸凭据");
             faces.consume(userId,qr.workplaceId(),qr.nonce(),request.requestId,request.type,request.faceVerificationId);
         }
         return EventView.from(store.append(userId, qr.workplaceId(), assignment.businessDate(), request.type, clock.instant(), request.requestId, qr.nonce(), distance));

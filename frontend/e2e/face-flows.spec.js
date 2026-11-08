@@ -53,6 +53,8 @@ test('真实未配置服务关闭登记采集，不把本机预览当识别', as
   expect(status.available).toBe(false)
   expect(status.storageAvailable).toBe(true)
   expect([status.detection, status.comparison, status.liveness]).toEqual([false, false, false])
+  await expect(page.getByRole('button', { name: '人脸服务未就绪', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '前往本人登记与授权', exact: true })).toHaveCount(0)
   expect(status.enrolled).toBe(false)
   const csrf = (await (await page.request.get('/api/auth/csrf')).json()).data
   const response = await page.request.post('/api/face/enrollment', {
@@ -96,6 +98,22 @@ test('登记更新删除的界面契约：真实采集JPEG、版本更新、明�
   await login(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/attendance/face')
+  await expect(page.getByText('登记与验证暂不可用', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: '前往本人登记与授权', exact: true }).click()
+  await expect(page).toHaveURL(/\/attendance\/face$/)
+  const consent = page.getByRole('checkbox', {
+    name: '我同意本次采集、服务端识别和加密特征处理',
+    exact: true,
+  })
+  await expect(consent).toBeFocused()
+  await expect(consent).not.toBeChecked()
+  await expect(
+    page.getByText('请先勾选下方采集同意，再开启采集摄像头。', { exact: true }),
+  ).toBeVisible()
+  expect(methods).toEqual([])
+  await expect(
+    page.getByRole('heading', { name: '本人登记与授权管理', exact: true }),
+  ).toBeInViewport()
   await openCollection(page)
   await page.getByRole('button', { name: '采集并登记人脸', exact: true }).click()
   await expect(page.getByText('已登记 · 版本 1', { exact: true })).toBeVisible()
@@ -177,6 +195,83 @@ test('验证界面绑定当前请求，换二维码失效，打卡不信任客�
   expect(punch.token).toBe(binding.token)
   expect(punch.type).toBe(binding.type)
   expect(punch.faceVerificationId).toBe('00000000-0000-0000-0000-000000000001')
+  expect(punch).not.toHaveProperty('verified')
+})
+
+test('非强制场所可选择人脸识别，失败阻止当前提交，取消选择恢复普通打卡（模拟SDK接口）', async ({
+  page,
+  context,
+}) => {
+  await collectionCamera(page)
+  await context.grantPermissions(['geolocation'])
+  await context.setGeolocation({ latitude: 31.2, longitude: 121.5, accuracy: 10 })
+  const status = { ...simulatedStatus(), enrolled: true, revision: 1, punchRequired: false }
+  let attempts = 0,
+    binding,
+    punch
+  await page.route('**/api/face/status', (route) => route.fulfill({ json: envelope(status) }))
+  await page.route('**/api/face/challenges', (route) => {
+    binding = route.request().postDataJSON()
+    return route.fulfill({
+      json: envelope({
+        id: '00000000-0000-0000-0000-000000000001',
+        expiresAt: new Date(Date.now() + 30000).toISOString(),
+      }),
+    })
+  })
+  await page.route('**/api/face/verification', (route) => {
+    attempts++
+    return route.fulfill({
+      json: envelope({
+        verified: attempts > 1,
+        verificationId: attempts > 1 ? '00000000-0000-0000-0000-000000000001' : null,
+        expiresAt: new Date(Date.now() + 30000).toISOString(),
+        message: '本次模拟比对未通过',
+      }),
+    })
+  })
+  await page.route('**/api/attendance/me/punches', (route) => {
+    punch = route.request().postDataJSON()
+    return route.fulfill({
+      status: 400,
+      json: { code: 'ATTENDANCE_INVALID_INPUT', message: '测试拒绝，未生成考勤事件', data: null },
+    })
+  })
+  await login(page)
+  await page.goto('/attendance')
+  await page.getByLabel('场所挑战令牌', { exact: true }).fill('payload.signature')
+  await page.getByRole('button', { name: '获取当前位置', exact: true }).click()
+  await expect(page.getByText('定位已获取', { exact: true })).toBeVisible()
+  const submit = page.getByRole('button', { name: '确认打卡', exact: true })
+  const choice = page.getByRole('checkbox', { name: '本次打卡使用人脸识别', exact: true })
+  await expect(submit).toBeEnabled()
+  await choice.check()
+  await expect(submit).toBeDisabled()
+  await openCollection(page)
+  await page.getByRole('button', { name: '采集并验证本次打卡', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('本次模拟比对未通过')
+  await expect(submit).toBeDisabled()
+  await page.getByRole('button', { name: '采集并验证本次打卡', exact: true }).click()
+  await expect(submit).toBeEnabled()
+  await choice.uncheck()
+  await expect(page.getByRole('heading', { name: '本次打卡人脸验证', exact: true })).toHaveCount(0)
+  await expect(submit).toBeEnabled()
+  page.once('dialog', (dialog) => dialog.accept())
+  await submit.click()
+  await expect(
+    page.getByRole('status').filter({ hasText: '测试拒绝，未生成考勤事件' }),
+  ).toBeVisible()
+  expect(punch.faceVerificationId).toBeNull()
+  await choice.check()
+  await expect(submit).toBeDisabled()
+  await openCollection(page)
+  await page.getByRole('button', { name: '采集并验证本次打卡', exact: true }).click()
+  await expect(submit).toBeEnabled()
+  page.once('dialog', (dialog) => dialog.accept())
+  await submit.click()
+  await expect.poll(() => punch.faceVerificationId).toBe('00000000-0000-0000-0000-000000000001')
+  expect(punch.requestId).toBe(binding.requestId)
+  expect(punch.token).toBe(binding.token)
   expect(punch).not.toHaveProperty('verified')
 })
 
