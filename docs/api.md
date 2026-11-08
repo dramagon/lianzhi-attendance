@@ -4,6 +4,8 @@
 
 2026-11-07 排班及打卡支持WGS84和GCJ02场所。档案保留原坐标，考勤目录返回服务端换算的WGS84场所点，员工仍上报WGS84。范围及数值验证见[B模块说明](modules/b-api.md)。
 
+2026-11-08 非强制场所也可选择本次人脸识别。创建新打卡时，非null的 `faceVerificationId` 必须由服务端校验并一次性消费；没有凭据时仍遵守原场所/全局强制策略及二维码、定位约束。详见[B模块人脸契约](modules/b-api.md)。
+
 C第六阶段新增 `GET /api/reports/attendance`（授权汇总、趋势、场所热度及日记录分页）和 `GET /api/reports/attendance/export`（同筛选、同权限、带公式注入防护的CSV附件）。仅ADMIN/HR，最长94天、最多100名当前启用员工。接口参数、分母及边界见[报表契约](modules/c-reports.md)。
 
 C第五阶段新增授权汇总 `GET /api/assistant/attendance/summary`，以及均需CSRF的申请预览 `POST /api/assistant/approval-drafts`、明确确认提交 `POST /api/assistant/approval-drafts/confirm`、取消 `POST /api/assistant/approval-drafts/{id}/cancel`。预览不创建申请；确认后仍通过A正常服务鉴权与幂等。详见[第五阶段契约](modules/c-day5-actions.md)。

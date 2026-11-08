@@ -66,6 +66,33 @@ class FaceWorkflowTest {
     FaceService.Challenge challenge(String request,String token){return faces.challenge(user,new FaceService.ChallengeInput(token,request,"IN"));}
     FaceService.Verification verify(String request,String token){var c=challenge(request,token);return faces.verify(user,c.id(),image,true);}
     AttendanceService.Punch punch(String request,String token,String verification){return new AttendanceService.Punch("IN",token,request,new GeoFence.Point(31.2,121.5,"WGS84"),10.0,verification);}
+    AttendanceService optionalAttendance(){
+        return new AttendanceService(directories,store,tokens,new FaceAttendancePort(){
+            public boolean requiredForPunch(){return false;}
+            public void consume(long u,long p,String n,String r,String t,String v){faces.consume(u,p,n,r,t,v);}
+        });
+    }
+    @Test void optionalFaceCredentialIsConsumedAndRetryRemainsIdempotent(){
+        faces.enroll(user,image,0,false,true);
+        String request=UUID.randomUUID().toString(),token=tokens.issue(place).token();
+        String credential=verify(request,token).verificationId();
+        var optional=optionalAttendance();var tx=new TransactionTemplate(transactions);
+        tx.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
+        var event=tx.execute(s->optional.punch(user,punch(request,token,credential)));
+        assertThat(event).isNotNull();
+        assertThat(jdbc.queryForObject("SELECT consumed_at FROM face_challenge WHERE id=?",java.sql.Timestamp.class,credential)).isNotNull();
+        assertThat(tx.execute(s->optional.punch(user,punch(request,token,credential))).id()).isEqualTo(event.id());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_event WHERE user_id=?",Integer.class,user)).isEqualTo(1);
+    }
+    @Test void optionalModeRejectsSuppliedInvalidCredentialButAllowsOrdinaryPunchWithoutOne(){
+        var optional=optionalAttendance();var tx=new TransactionTemplate(transactions);
+        tx.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
+        String request=UUID.randomUUID().toString(),token=tokens.issue(place).token();
+        assertThatThrownBy(()->tx.execute(s->optional.punch(user,punch(request,token,UUID.randomUUID().toString())))).isInstanceOf(IllegalArgumentException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM attendance_event WHERE user_id=?",Integer.class,user)).isZero();
+        AttendanceService.EventView ordinary=tx.execute(s->optional.punch(user,punch(request,token,null)));
+        assertThat(ordinary).isNotNull();
+    }
     @Test void enrollmentIsEncryptedRevisionProtectedAndDeletionRevokesChallenges(){
         assertThat(faces.status(user).available()).isTrue();
         var first=faces.enroll(user,image,0,false,true);

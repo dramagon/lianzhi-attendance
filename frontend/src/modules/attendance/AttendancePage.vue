@@ -34,6 +34,7 @@ const now = ref(new Date()),
   token = ref(''),
   punchType = ref('IN')
 const faceProof = ref(null)
+const useFaceForPunch = ref(false)
 const faceEnrollmentActions = ref(null)
 function openFaceEnrollment() {
   stopCamera()
@@ -42,6 +43,7 @@ function openFaceEnrollment() {
 const faceRequired = computed(
   () => face.value?.punchRequired === true || workplaces.value.some((place) => place.faceRequired),
 )
+const faceSelected = computed(() => faceRequired.value || useFaceForPunch.value)
 const faceProofFresh = computed(
   () => !!faceProof.value && Date.parse(faceProof.value.expiresAt) > now.value.getTime(),
 )
@@ -106,7 +108,7 @@ const canPunch = computed(
     locationFresh.value &&
     !punching.value &&
     !pendingPunch.value &&
-    (!faceRequired.value || faceProofFresh.value),
+    (!faceSelected.value || faceProofFresh.value),
 )
 // Only a request identifier is kept in this tab, never a QR token, coordinates or image.
 const pendingKey = `lianzhi.b.pending-punch.${auth.user.id}`
@@ -304,6 +306,7 @@ function newPunchRequest() {
   requestId.value = token.value.trim() ? crypto.randomUUID() : null
 }
 watch([token, punchType], newPunchRequest)
+watch(faceSelected, newPunchRequest)
 function locate() {
   if (punching.value || pendingPunch.value) return
   const revision = ++locationRevision
@@ -353,6 +356,7 @@ async function punch() {
     return
   punching.value = true
   feedback.value = ''
+  const usedFaceVerification = faceSelected.value && faceProofFresh.value
   try {
     requestId.value ||= crypto.randomUUID()
     rememberPending({ requestId: requestId.value, type: punchType.value })
@@ -366,12 +370,12 @@ async function punch() {
         coordinateSystem: 'WGS84',
       },
       accuracyMeters: location.value.accuracy,
-      faceVerificationId: faceProof.value?.verificationId || null,
+      faceVerificationId: faceSelected.value ? faceProof.value?.verificationId || null : null,
     })
     if (disposed) return
     rememberPending(null)
     token.value = ''
-    feedback.value = `打卡成功 · ${timeText(event.occurredAt)}，可在考勤记录查看。`
+    feedback.value = `打卡成功${usedFaceVerification ? ' · 本次已通过人脸验证' : ''} · ${timeText(event.occurredAt)}，可在考勤记录查看。`
   } catch (e) {
     // A transport error or server failure leaves the outcome unknown. A 4xx is authoritative.
     if (disposed) return
@@ -639,19 +643,40 @@ onUnmounted(() => {
             />
           </label>
           <QrScanner v-if="available && !punching && !pendingPunch" @scanned="token = $event" />
+          <div v-if="face?.available && !faceRequired" class="b-face-option">
+            <label class="b-checkbox">
+              <input
+                v-model="useFaceForPunch"
+                type="checkbox"
+                :disabled="!face.enrolled || punching || !!pendingPunch"
+              />本次打卡使用人脸识别
+            </label>
+            <p class="b-small">
+              {{
+                face.enrolled
+                  ? '勾选后须通过本人比对和活体检测，才能提交本次打卡。'
+                  : '使用人脸识别前，请先登记本人特征。'
+              }}
+              <RouterLink v-if="!face.enrolled" to="/attendance/face">前往人脸登记</RouterLink>
+            </p>
+          </div>
           <FaceActions
-            v-if="faceRequired"
+            v-if="faceSelected"
             mode="verify"
             :status="face"
             :context="{ token: token.trim(), requestId, type: punchType }"
-            :disabled="punching || !!pendingPunch"
+            :disabled="punching || !!pendingPunch || !token.trim() || !locationFresh"
             @verified="faceProof = $event"
           />
-          <p v-if="faceRequired" class="b-small">
+          <p v-if="faceSelected" class="b-small">
             {{
-              faceProofFresh
-                ? '本次人脸凭据有效，可提交打卡'
-                : '本次打卡需要服务端人脸验证；未就绪或凭据过期时不能提交'
+              !token.trim()
+                ? '请先扫描或填写有效场所二维码，再进行人脸验证。'
+                : !locationFresh
+                  ? '请先获取当前位置，再开启人脸验证摄像头。'
+                  : faceProofFresh
+                    ? '本次人脸凭据有效，可提交打卡'
+                    : '请勾选采集同意，开启采集摄像头，再点击“采集并验证本次打卡”。未通过或凭据过期时不能提交。'
             }}
           </p>
           <button class="b-punch-button" :disabled="!canPunch" @click="punch">
