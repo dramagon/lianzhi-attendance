@@ -7,9 +7,16 @@ final class ModelJsonSchemas {
     private static Map<String,Object> object(Map<String,Object> properties){return Map.of("type","object","properties",properties,"required",List.copyOf(properties.keySet()),"additionalProperties",false);}
     static Map<String,Object> answer(){return object(Map.of("answerable",Map.of("type","boolean"),"answer",Map.of("type","string"),"citations",Map.of("type","array","maxItems",6,"items",object(Map.of("id",Map.of("type","string","enum",List.of("S1","S2","S3","S4","S5","S6")),"quote",Map.of("type","string"))))));}
     static Map<String,Object> suggestion(){
-        var nullable=Map.of("type",List.of("string","null"));
-        var draft=new HashMap<>(object(Map.of("type",Map.of("type","string","enum",List.of("LEAVE","OVERTIME","MISSING_PUNCH")),"startAt",Map.of("type","string"),"endAt",nullable,"punchType",Map.of("type",List.of("string","null"),"enum",Arrays.asList("IN","OUT",null)),"workplaceId",Map.of("type",List.of("integer","null")),"reason",Map.of("type","string"))));
-        draft.put("type",List.of("object","null"));
+        // Generation must not choose an endAt=null branch for LEAVE/OVERTIME.
+        // Business validation remains authoritative even when a provider ignores the schema.
+        var draft=Map.of("anyOf",List.of(draft("LEAVE"),draft("OVERTIME"),draft("MISSING_PUNCH"),Map.of("type","null")));
         return object(Map.of("ready",Map.of("type","boolean"),"message",Map.of("type","string"),"draft",draft));
+    }
+    private static Map<String,Object> draft(String type){
+        var timestamp=Map.of("type","string","pattern","^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$");
+        var nothing=Map.of("type","null");boolean missing=type.equals("MISSING_PUNCH");
+        return object(Map.of("type",Map.of("type","string","enum",List.of(type)),"startAt",timestamp,
+                "endAt",missing?nothing:timestamp,"punchType",missing?Map.of("type","string","enum",List.of("IN","OUT")):nothing,
+                "workplaceId",missing?Map.of("type","integer","minimum",1):nothing,"reason",Map.of("type","string","minLength",1)));
     }
 }
