@@ -41,7 +41,7 @@ H5产物：`dist/build/h5/`。生产部署为静态站点，使用可信HTTPS，
 
 H5浏览器覆盖真实上下班/记录、二维码图片解码、权限拒绝与恢复、响应丢失、刷新和跨浏览器只读回执；另外两项人脸页面测试使用明确SDK接口替身，验证二进制、版本、授权、失败/过期，不代表真实人脸或活体已通过。协议单测覆盖原生Cookie/CSRF轮换、会话隔离、禁止自动重试、最小化持久存储和multipart。
 
-云端未运行Windows授权SDK、微信开发者工具/微信真机或真实手机GPS/摄像头；这些项目必须在A环境执行。具体清单见`../docs/team/member-b-mobile-checklist.md`。Windows环境可选运行`python scripts/check-face-environment.py --output artifacts/face-preflight.json`做静态检查；该检查不激活SDK，不显示密钥，也不证明本人/异人或防照片攻击已通过。
+云端未运行Windows授权SDK、微信开发者工具/微信真机或真实手机GPS/摄像头；这些项目必须在A环境执行。具体清单见`../docs/team/member-b-mobile-checklist.md`。Windows环境可从仓库根目录运行`python scripts/check-face-environment.py --output artifacts/face-preflight.json`做静态检查；该检查不激活SDK，不显示密钥，也不证明本人/异人或防照片攻击已通过。
 
 ## 来源和依赖
 
@@ -60,3 +60,16 @@ H5浏览器覆盖真实上下班/记录、二维码图片解码、权限拒绝�
 构建包另附acceptance.md和tools/check-face-environment.py，SDK静态检查可在解压目录运行`python tools/check-face-environment.py --output face-preflight.json`；真实环境变量仍只配置在本机。包中的AppID/合法域名未实际配置，微信端须按上述源码步骤配置重建。
 
 手机H5同源HTTPS示例见Caddyfile.example：将示例主机名/路径/端口替换为实际值，按已有tools/mobile-acceptance说明安装并运行Caddy，手机与电脑可达且明确信任内部CA后访问。/api先代理至原Windows后端，其余请求读取H5静态文件，不改登录/CSRF。不要自动导入CA或关闭证书检查；此示例不意味着本轮已验证手机证书信任。微信生产request域名仍须满足微信平台要求，不能用局域网自签名开发结果代替。
+
+
+## B配合验收工具与恢复加固
+
+登录后的“设备验收”页可读本机基本信息、填写实测SHA及逐项结果，并导出JSON；微信端在用户点击后写入本地并尝试系统文件分享，取消分享只报告本地生成。服务不通或尚未登录时，可点“离线填写设备验收”。同一账号切换页签保留当前草稿，退出或刷新不承诺保留，及时导出。报告不发往后端，不自动填写通过；未执行默认NOT_RUN。设备观测只是本端最近状态，不证明当前证书、GPS、SDK或业务均已通过。真实含凭据打卡标通过时须填原始事件编号，由A核对。
+
+采集现在可明确取消；换页、撤回同意或换账号会中止H5选择器并拒绝迟到结果。系统拍照可能临时切出应用：只有同一采集请求返回同账号/同页面、且同意仍有效时才接收临时图像，依旧不自动上传。原定位和凭据在后台立即失效，返回后须重新定位和验证。H5 pagehide/visibilitychange也会清理本地状态；迟到的识别成功不能恢复凭据。登录/会话恢复一确认账号即恢复待核对编号，不再等待档案接口成功。
+
+已核对C692d90c的Redis Cookie仍为JSESSIONID，503不得清除会话或重放写请求。除协议测试外，B客户端已在C的两个独立JVM、真实MySQL/Redis中交替发送25次请求，核对登录/CSRF、原始打卡、同回执与退出；这使用HTTP传输适配器，不是真微信或TLS验收。源代码里的scripts/verify-b-c-session.py会创建/清理独占容器，必须提供C源码及已构建JAR、Java、Docker和精确镜像摘要，不能改指现有业务库。C的整体代码不在本B分支自动合并。
+
+未提交源码的构建包现在命名为`lianzhi-mobile-<SHA>-working.zip`，清洁提交才使用正式`lianzhi-mobile-<SHA>.zip`，防止预览构建覆盖已交付版本。仓库根目录运行`python scripts/test-mobile-package.py`验证该隔离规则、校验值和私有开发配置排除。
+
+微信构建包会校验usingComponents的本地js/json/wxml依赖，并包含components目录。构建通过不代表ZIP必然完整；打包器发现缺失引用会直接拒绝，私有开发配置、源码映射仍排除。

@@ -32,34 +32,44 @@ export async function readImage(path) {
   return bytes;
 }
 
-export function pickImage(cameraOnly = false) {
+export function pickImage(cameraOnly = false, signal) {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/jpeg,image/png";
     input.style.display = "none";
     if (cameraOnly) input.setAttribute("capture", "user");
-    const finish = () => input.remove();
-    input.addEventListener(
-      "change",
-      () => {
-        const file = input.files?.[0];
-        finish();
-        if (!file) reject(new Error("未取得图像，请重新拍摄"));
-        else if (file.size > 2 * 1024 * 1024)
-          reject(new Error("图像不能超过2MB，请重新拍摄"));
-        else resolve(URL.createObjectURL(file));
-      },
-      { once: true },
-    );
-    input.addEventListener(
-      "cancel",
-      () => {
-        finish();
-        reject(new Error("已取消图像采集"));
-      },
-      { once: true },
-    );
+    let settled = false;
+    function finish() {
+      signal?.removeEventListener("abort", cancel);
+      input.removeEventListener("change", changed);
+      input.removeEventListener("cancel", cancel);
+      input.value = "";
+      input.remove();
+    }
+    function cancel() {
+      if (settled) return;
+      settled = true;
+      finish();
+      reject(new Error("已取消图像采集"));
+    }
+    function changed() {
+      if (settled) return;
+      const file = input.files?.[0];
+      settled = true;
+      finish();
+      if (!file) reject(new Error("未取得图像，请重新拍摄"));
+      else if (file.size > 2 * 1024 * 1024)
+        reject(new Error("图像不能超过2MB，请重新拍摄"));
+      else resolve(URL.createObjectURL(file));
+    }
+    if (signal?.aborted) {
+      cancel();
+      return;
+    }
+    signal?.addEventListener("abort", cancel, { once: true });
+    input.addEventListener("change", changed, { once: true });
+    input.addEventListener("cancel", cancel, { once: true });
     document.body.appendChild(input);
     input.click();
   });

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch, onUnmounted } from "vue";
 import { onShow, onHide, onUnload } from "@dcloudio/uni-app";
+import AcceptancePanel from "../../components/AcceptancePanel.vue";
 import { createClient } from "../../lib/client.js";
 import {
   uuid,
@@ -54,7 +55,8 @@ const token = ref(""),
   proof = ref(null),
   optionalFace = ref(false),
   consent = ref(false),
-  photo = ref("");
+  photo = ref(""),
+  capturing = ref(false);
 const receiptId = ref("");
 const pending = ref(null),
   days = ref(null),
@@ -66,6 +68,9 @@ const from = ref(""),
 let sessionEpoch = 0,
   operation = 0,
   recordsRevision = 0,
+  profileRevision = 0,
+  captureRevision = 0,
+  captureAbort = null,
   disposed = false;
 const client = createClient(uni, {
   base,
@@ -122,7 +127,15 @@ function saveReceipt(value) {
   pending.value = value;
   if (user.value) savePending(uni, user.value.id, value);
 }
+function cancelCapture() {
+  captureRevision++;
+  captureAbort?.abort();
+  captureAbort = null;
+  capturing.value = false;
+  photo.value = "";
+}
 function suspend() {
+  profileRevision++;
   operation++;
   recordsRevision++;
   busy.value = false;
@@ -132,6 +145,7 @@ function suspend() {
 }
 function resetSession() {
   sessionEpoch++;
+  cancelCapture();
   suspend();
   user.value = profile.value = face.value = capability.value = null;
   places.value = [];
@@ -139,12 +153,14 @@ function resetSession() {
   days.value = records.value = null;
   password.value = "";
   token.value = "";
+  from.value = to.value = "";
   consent.value = false;
   optionalFace.value = false;
   client.clear();
 }
 function switchView(next) {
   if (next === view.value) return;
+  cancelCapture();
   suspend();
   consent.value = false;
   view.value = next;
@@ -169,21 +185,23 @@ async function action(task) {
 const current = (epoch, op) =>
   !disposed && epoch === sessionEpoch && op === operation;
 async function loadProfile() {
-  const epoch = sessionEpoch;
+  const epoch = sessionEpoch,
+    revision = ++profileRevision;
   const [person, status, faceStatus, workplaces] = await Promise.all([
     client.request("/employees/me"),
     client.request("/attendance/status"),
     client.request("/face/status"),
     client.request("/attendance/me/workplaces"),
   ]);
-  if (disposed || epoch !== sessionEpoch) return;
+  if (disposed || epoch !== sessionEpoch || revision !== profileRevision)
+    return;
   profile.value = person;
   capability.value = status;
   face.value = faceStatus;
   places.value = workplaces;
   const date = businessDate(new Date(status.serverTime));
-  from.value = `${date.slice(0, 8)}01`;
-  to.value = date;
+  if (!from.value) from.value = `${date.slice(0, 8)}01`;
+  if (!to.value) to.value = date;
 }
 async function signIn() {
   if (busy.value) return;
@@ -195,9 +213,9 @@ async function signIn() {
     password.value = "";
     if (!current(epoch, op)) return;
     user.value = account;
+    pending.value = readPending(uni, account.id);
     await loadProfile();
     if (!current(epoch, op)) return;
-    pending.value = readPending(uni, account.id);
     message.value = "登录成功，已读取本人档案和服务状态";
   });
 }
@@ -235,9 +253,9 @@ async function locate() {
     message.value = "已获取本次WGS84定位，60秒内有效";
   });
 }
-function chooseImage(cameraOnly = false) {
+function chooseImage(cameraOnly = false, signal) {
   // #ifdef H5
-  return pickImage(cameraOnly);
+  return pickImage(cameraOnly, signal);
   // #endif
   // #ifndef H5
   return new Promise((resolve, reject) =>
@@ -282,19 +300,43 @@ async function scan() {
   });
 }
 async function capturePhoto() {
-  if (!consent.value || !face.value?.available || busy.value) return;
-  const epoch = sessionEpoch;
+  if (!consent.value || !face.value?.available || busy.value || capturing.value)
+    return;
+  cancelCapture();
+  const epoch = sessionEpoch,
+    revision = captureRevision,
+    screen = view.value;
   invalidate();
-  photo.value = "";
+  capturing.value = true;
   error.value = message.value = "";
+  // #ifdef H5
+  captureAbort = new AbortController();
+  // #endif
   try {
-    const value = await chooseImage(true);
-    if (!disposed && epoch === sessionEpoch && user.value) {
-      photo.value = value;
-      message.value = "已取得本次采集图像，尚未上传；请核对授权后提交";
+    const value = await chooseImage(true, captureAbort?.signal);
+    if (
+      disposed ||
+      epoch !== sessionEpoch ||
+      revision !== captureRevision ||
+      !consent.value ||
+      view.value !== screen ||
+      !user.value
+    ) {
+      // #ifdef H5
+      releaseImage(value);
+      // #endif
+      return;
     }
+    photo.value = value;
+    message.value = "已取得本次采集图像，尚未上传；请核对授权后提交";
   } catch (e) {
-    if (epoch === sessionEpoch) error.value = e.message;
+    if (!disposed && epoch === sessionEpoch && revision === captureRevision)
+      error.value = e.message;
+  } finally {
+    if (revision === captureRevision) {
+      capturing.value = false;
+      captureAbort = null;
+    }
   }
 }
 async function photoBytes() {
@@ -551,8 +593,8 @@ watch(
 // #endif
 watch(consent, (value) => {
   if (!value) {
+    cancelCapture();
     invalidate();
-    photo.value = "";
   }
 });
 watch([from, to], () => {
@@ -563,26 +605,45 @@ const timer = setInterval(() => {
   now.value = Date.now();
 }, 1000);
 onShow(async () => {
+  if (user.value) {
+    await action(loadProfile);
+    if (user.value && view.value === "records") await loadRecords();
+    return;
+  }
   if (!user.value && !nativeCookie) {
     const epoch = sessionEpoch;
     try {
       const account = await client.request("/auth/session");
       if (epoch !== sessionEpoch) return;
       user.value = account;
+      pending.value = readPending(uni, account.id);
       await loadProfile();
-      if (epoch === sessionEpoch) pending.value = readPending(uni, account.id);
-    } catch {
-      /* Login remains available. */
+    } catch (e) {
+      if (!disposed && epoch === sessionEpoch && user.value)
+        error.value = e.message;
     }
   }
 });
 onHide(suspend);
+// #ifdef H5
+function visibilityChanged() {
+  if (document.hidden) suspend();
+}
+window.addEventListener("pagehide", suspend);
+document.addEventListener("visibilitychange", visibilityChanged);
+// #endif
 onUnload(() => {
+  cancelCapture();
   disposed = true;
   suspend();
   clearInterval(timer);
 });
 onUnmounted(() => {
+  cancelCapture();
+  // #ifdef H5
+  window.removeEventListener("pagehide", suspend);
+  document.removeEventListener("visibilitychange", visibilityChanged);
+  // #endif
   disposed = true;
   clearInterval(timer);
 });
@@ -622,6 +683,9 @@ onUnmounted(() => {
       >
         {{ busy ? "正在登录…" : "登录" }}
       </button>
+      <button role="button" @click="view = 'acceptance'">
+        离线填写设备验收
+      </button>
       <text class="muted"
         >如无法登录，请核对服务地址与网络；摄像头和定位需可信HTTPS。</text
       >
@@ -651,6 +715,7 @@ onUnmounted(() => {
             { id: 'punch', title: '打卡' },
             { id: 'records', title: '本人记录' },
             { id: 'face', title: '人脸登记' },
+            { id: 'acceptance', title: '设备验收' },
           ]"
           :key="item.id"
           :class="{ active: view === item.id }"
@@ -661,6 +726,10 @@ onUnmounted(() => {
           {{ item.title }}
         </button></view
       >
+      <view v-if="capturing" class="notice">
+        <text>正在等待系统拍摄；尚未上传图像。</text>
+        <button role="button" @click="cancelCapture">取消本次采集</button>
+      </view>
       <view v-if="pending" class="card pending">
         <text class="heading">有一笔打卡待核对</text
         ><text class="muted"
@@ -770,6 +839,7 @@ onUnmounted(() => {
             <button
               role="button"
               :aria-disabled="
+                capturing ||
                 busy ||
                 !consent ||
                 !face?.available ||
@@ -777,6 +847,7 @@ onUnmounted(() => {
                 !!pending
               "
               :disabled="
+                capturing ||
                 busy ||
                 !consent ||
                 !face?.available ||
@@ -907,8 +978,8 @@ onUnmounted(() => {
         >
         <button
           role="button"
-          :aria-disabled="busy || !consent || !face?.available"
-          :disabled="busy || !consent || !face?.available"
+          :aria-disabled="capturing || busy || !consent || !face?.available"
+          :disabled="capturing || busy || !consent || !face?.available"
           @click="capturePhoto"
         >
           拍摄登记图像
@@ -957,6 +1028,15 @@ onUnmounted(() => {
           核对其他端请求
         </button>
       </view>
+      <AcceptancePanel
+        v-show="view === 'acceptance'"
+        :observations="{
+          backendConnected: capability?.available === true,
+          faceAvailable: face?.available === true,
+          faceEnrolled: face?.enrolled === true,
+          locationFresh: freshLocation(location, now) === true,
+        }"
+      />
       <button
         role="button"
         :aria-disabled="busy"
@@ -966,6 +1046,7 @@ onUnmounted(() => {
         刷新本人档案与服务状态
       </button>
     </template>
+    <AcceptancePanel v-if="!user && view === 'acceptance'" :observations="{}" />
     <text class="footer"
       >人脸识别由服务端已授权引擎执行；客户端不判断“本人”。H5及小程序的真机授权和HTTPS仍需现场验收。</text
     >
@@ -1042,6 +1123,10 @@ button {
 .tabs button {
   flex: 1;
   width: auto;
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: 13px;
 }
 .active {
   color: #215be2;

@@ -219,10 +219,18 @@ test("写入成功但响应丢失，刷新后核对原回执且不重发", async
     .click();
   await expect(other.getByText(/已核对其他端原始记录#/)).toBeVisible();
   await otherContext.close();
+  await page.route("**/api/employees/me", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { message: "档案读取暂不可用", data: null },
+    }),
+  );
   await page.reload();
+  await expect(page.getByRole("alert")).toContainText("档案读取暂不可用");
   await expect(
     page.getByText("有一笔打卡待核对", { exact: true }),
   ).toBeVisible();
+  await page.unroute("**/api/employees/me");
   await page.getByRole("button", { name: "核对原始回执", exact: true }).click();
   await expect(page.getByText(/已从服务器核对记录#/)).toBeVisible();
   expect(writes).toBe(1);
@@ -426,5 +434,289 @@ test("可选人脸失败或过期不回退普通打卡（SDK页面契约替身�
   await expect(
     page.getByRole("button", { name: "确认打卡", exact: true }),
   ).toBeDisabled({ timeout: 5000 });
+  expect(writes).toBe(0);
+});
+
+test("撤回同意取消待选图，旧选择器不能回填人脸或上传（页面契约替身）", async ({
+  page,
+  request,
+}) => {
+  const data = await fixture(request);
+  await page.route("**/api/face/status", (route) =>
+    route.fulfill({ json: { data: faceState(0) } }),
+  );
+  await login(page, data.username);
+  await page.getByRole("button", { name: "人脸登记", exact: true }).click();
+  await page.locator("uni-checkbox").click();
+  const picker = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "拍摄登记图像", exact: true }).click();
+  const selected = await picker;
+  await expect(
+    page.getByRole("button", { name: "取消本次采集", exact: true }),
+  ).toBeVisible();
+  await page.locator("uni-checkbox").click();
+  await expect(page.locator("input[type=file]")).toHaveCount(0);
+  await selected
+    .element()
+    .evaluate((input) =>
+      input.dispatchEvent(new Event("change", { bubbles: true })),
+    );
+  await expect(
+    page.getByRole("button", { name: "确认保存本人登记", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByText(/已取得本次采集图像/)).toHaveCount(0);
+});
+
+test("切页取消待采集并允许下一次重新选择（页面契约替身）", async ({
+  page,
+  request,
+}) => {
+  const data = await fixture(request);
+  await page.route("**/api/face/status", (route) =>
+    route.fulfill({ json: { data: faceState(0) } }),
+  );
+  await login(page, data.username);
+  await page.getByRole("button", { name: "人脸登记", exact: true }).click();
+  await page.locator("uni-checkbox").click();
+  const picker = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "拍摄登记图像", exact: true }).click();
+  const old = await picker;
+  await page.getByRole("button", { name: "打卡", exact: true }).click();
+  await expect(page.locator("input[type=file]")).toHaveCount(0);
+  await old
+    .element()
+    .evaluate((input) =>
+      input.dispatchEvent(new Event("change", { bubbles: true })),
+    );
+  await expect(page.getByText(/已取得本次采集图像/)).toHaveCount(0);
+  await page.getByRole("button", { name: "人脸登记", exact: true }).click();
+  await page.locator("uni-checkbox").click();
+  await photograph(page, "拍摄登记图像");
+  await expect(
+    page.getByRole("button", { name: "确认保存本人登记", exact: true }),
+  ).toBeEnabled();
+});
+
+test("切后台后迟到的人脸成功响应不恢复凭据且释放图像（页面契约替身）", async ({
+  page,
+  context,
+  request,
+}) => {
+  const data = await fixture(request);
+  let release,
+    waiting = false,
+    writes = 0;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/face/status", (route) =>
+    route.fulfill({ json: { data: faceState(1) } }),
+  );
+  await page.route("**/api/face/challenges", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          id: crypto.randomUUID(),
+          expiresAt: new Date(Date.now() + 30000).toISOString(),
+        },
+      },
+    }),
+  );
+  await page.route("**/api/face/verification", async (route) => {
+    waiting = true;
+    await held;
+    await route.fulfill({
+      json: {
+        data: {
+          verified: true,
+          verificationId: "TEST_ONLY_LATE_PROOF",
+          expiresAt: new Date(Date.now() + 30000).toISOString(),
+        },
+      },
+    });
+  });
+  page.on("request", (req) => {
+    if (new URL(req.url()).pathname === "/api/attendance/me/punches") writes++;
+  });
+  await login(page, data.username);
+  await qr(page, request, data.place);
+  await locate(page, context);
+  await page.locator("uni-switch").click();
+  await page.locator("uni-checkbox").click();
+  await photograph(page, "拍摄本次人脸");
+  await page
+    .getByRole("button", { name: "提交本次人脸验证", exact: true })
+    .click();
+  await expect.poll(() => waiting).toBe(true);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const response = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === "/api/face/verification",
+  );
+  release();
+  await response;
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    return new Promise((resolve) => requestAnimationFrame(resolve));
+  });
+  await expect(
+    page.getByText("服务端验证通过，凭据仍有效", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "确认打卡", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("定位尚未就绪或已过期", { exact: true }),
+  ).toBeVisible();
+  expect(writes).toBe(0);
+});
+
+test("实际打卡处理中切后台，回来只读回执并且事件仍一条", async ({
+  page,
+  context,
+  request,
+}) => {
+  const data = await fixture(request);
+  let release,
+    stored = false,
+    writes = 0;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  await login(page, data.username);
+  await qr(page, request, data.place);
+  await locate(page, context);
+  await page.route("**/api/attendance/me/punches", async (route) => {
+    writes++;
+    const result = await route.fetch();
+    expect(result.ok()).toBe(true);
+    stored = true;
+    await held;
+    await route.fulfill({ response: result });
+  });
+  await confirm(page);
+  await expect.poll(() => stored).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+  const response = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === "/api/attendance/me/punches",
+  );
+  release();
+  await response;
+  await expect(
+    page.getByText("有一笔打卡待核对", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/服务器已确认打卡/)).toHaveCount(0);
+  await page.getByRole("button", { name: "核对原始回执", exact: true }).click();
+  await expect(page.getByText(/已从服务器核对记录#/)).toBeVisible();
+  expect(writes).toBe(1);
+  expect(
+    (
+      await (
+        await page.request.get(
+          `/api/attendance/me/records?from=${data.date}&to=${data.date}`,
+        )
+      ).json()
+    ).data.total,
+  ).toBe(1);
+});
+
+test("现场报告默认未执行且不包含会话、坐标或照片（自动化报告非真机）", async ({
+  page,
+  request,
+}) => {
+  const data = await fixture(request);
+  await login(page, data.username);
+  await page.getByRole("button", { name: "设备验收", exact: true }).click();
+  await page
+    .getByRole("button", { name: "导出或分享现场报告", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("请填写实际设备");
+  for (const [id, value] of Object.entries({
+    "audit-model": "自动化Chromium，非手机",
+    "audit-system": "云端测试",
+    "audit-browser": "Chromium仿真视口",
+    "audit-revision": "50c0a40",
+  }))
+    await page.locator(`#${id} input`).fill(value);
+  await page.getByRole("button", { name: "本人记录", exact: true }).click();
+  await page.getByRole("button", { name: "设备验收", exact: true }).click();
+  await expect(page.locator("#audit-model input")).toHaveValue(
+    "自动化Chromium，非手机",
+  );
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "导出或分享现场报告", exact: true })
+    .click();
+  const file = await download;
+  const { readFile } = await import("node:fs/promises");
+  const report = JSON.parse(await readFile(await file.path(), "utf8"));
+  expect(report.summary.overall).toBe("NOT_COMPLETE");
+  expect(report.summary.passed).toBe(0);
+  expect(report.checks.every((item) => item.result === "NOT_RUN")).toBe(true);
+  expect(report.observations.backendConnected).toBe(true);
+  expect(report.eventId).toBeNull();
+  expect(JSON.stringify(report)).not.toMatch(
+    /latitude|longitude|password|cookie|verificationId|image/i,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "../artifacts/b-mobile-acceptance-report.png",
+    fullPage: true,
+  });
+});
+
+test("服务不可用时仍可离线导出未执行验收报告（自动化非真机）", async ({
+  page,
+}) => {
+  let writes = 0;
+  page.on("request", (req) => {
+    if (
+      req.method() === "POST" &&
+      new URL(req.url()).pathname.startsWith("/api/")
+    )
+      writes++;
+  });
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    (route) =>
+      route.fulfill({
+        status: 503,
+        json: { message: "测试服务离线", data: null },
+      }),
+  );
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "离线填写设备验收", exact: true })
+    .click();
+  for (const [id, value] of Object.entries({
+    "audit-model": "离线自动化报告非手机",
+    "audit-system": "云端测试",
+    "audit-browser": "Chromium",
+    "audit-revision": "50c0a40",
+  }))
+    await page.locator(`#${id} input`).fill(value);
+  const downloaded = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "导出或分享现场报告", exact: true })
+    .click();
+  const file = await downloaded;
+  const { readFile } = await import("node:fs/promises");
+  const report = JSON.parse(await readFile(await file.path(), "utf8"));
+  expect(report.summary.overall).toBe("NOT_COMPLETE");
+  expect(report.observations.backendConnected).toBe(false);
+  expect(report.summary.notRun).toBe(10);
   expect(writes).toBe(0);
 });

@@ -195,3 +195,31 @@ test("late 401 from an older session cannot discard a newer native login", async
   assert.equal(expired, 0);
   await api.request("/auth/csrf");
 });
+
+test("C Redis 503 contract keeps native session and never replays a write", async () => {
+  let expired = 0;
+  const rt = runtime([
+    ok({ id: 3 }, { cookies: ["JSESSIONID=current"] }),
+    {
+      statusCode: 503,
+      data: { code: "SESSION_STORE_UNAVAILABLE", message: "会话服务暂不可用" },
+    },
+    ok({ headerName: "X-CSRF", token: "recovered" }),
+    ok({ id: 8 }),
+  ]);
+  const api = createClient(rt, {
+    base: "https://example.invalid",
+    cookieHeader: true,
+    expired: () => expired++,
+  });
+  await api.request("/auth/session");
+  await assert.rejects(
+    api.write("POST", "/attendance/me/punches", {}),
+    /会话服务暂不可用/,
+  );
+  assert.equal(rt.calls.length, 2);
+  assert.equal(expired, 0);
+  await api.write("POST", "/attendance/me/punches", {});
+  assert.equal(rt.calls[3].header.Cookie, "JSESSIONID=current");
+  assert.equal(rt.calls[3].header["X-CSRF"], "recovered");
+});
