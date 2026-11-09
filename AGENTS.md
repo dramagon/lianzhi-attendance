@@ -1,6 +1,6 @@
 # 项目协作约定
 
-- 项目名称：联智企业智能考勤与业务助手。当前阶段及后续范围见 `docs/roadmap.md`。
+- 项目名称：联智企业智能考勤与业务助手。功能与运行说明见 `README.md`。
 - 依赖版本以 `backend/pom.xml` 和 `frontend/package-lock.json` 为准，避免不同模块自行替换技术栈。
 - 后端按业务分包；接口返回 DTO，含密码等敏感字段的持久层对象不得直接输出。
 - 当前认证为 Spring Security 服务端会话 + CSRF；同时维护后端授权、路由守卫和菜单权限。
@@ -11,5 +11,5 @@
 - 后端修改运行 `./mvnw test`，前端修改运行 `npm run build`；涉及登录、权限或导航时运行 `npm run test:e2e`（先启动演示后端）。Windows 使用 `mvnw.cmd`。
 - 本地密码、API 密钥、数据库文件、真实员工信息和人脸图像不提交仓库。演示账号仅允许在演示模式生成。
 - Windows 启动说明见 `docs/windows-setup.md`。本机验证与云端验证要分清，未运行的环境不可宣称已通过。
-- 三人协作先读取 `docs/team/README.md`、`docs/team/contracts.md` 和自己的 `member-a.md`、`member-b.md` 或 `member-c.md`。模块API分别维护到 `docs/modules/a-api.md`、`b-api.md`、`c-api.md`，`docs/api.md`保留统一入口。
 - 用户要求每阶段同步GitHub：验证后commit、push个人远端分支并创建/更新PR，核对远端后报告分支、SHA、PR与未完成项。推送失败明确说明，不将本机commit当作同步成功，不force push覆盖他人提交。
+- 技术文档按业务功能维护，统一接口入口为 `docs/api.md`；不在用户文档中加入个人分工、阶段流水或聊天交接记录。

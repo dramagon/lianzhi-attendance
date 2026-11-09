@@ -9,15 +9,23 @@ async function login(page, role) {
 
 test('管理员登录、账号筛选、刷新保留会话、退出后失去权限', async ({ page }) => {
   await login(page, '管理员')
-  await expect(page.getByRole('heading', { name: '演示管理员，欢迎回来' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '管理员一，欢迎回来' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '建设进度' })).toHaveCount(0)
+  await page.goto('/roadmap')
+  await expect(page).toHaveURL(/\/workbench$/)
   await page.getByRole('link', { name: '系统账号' }).first().click()
-  await expect(page.locator('tbody tr')).toHaveCount(3)
+  // A1允许持久新增员工；按真实API数量校验，保留账号筛选和刷新回归。
+  const response = await page.request.get('/api/admin/accounts')
+  expect(response.ok()).toBe(true)
+  const count = (await response.json()).data.length
+  expect(count).toBeGreaterThanOrEqual(3)
+  await expect(page.locator('tbody tr')).toHaveCount(count)
   await page.getByRole('textbox', { name: '搜索账号' }).fill('DEMO003')
   await expect(page.locator('tbody tr')).toHaveCount(1)
-  await expect(page.locator('tbody')).toContainText('演示员工')
+  await expect(page.locator('tbody')).toContainText('员工一')
   await page.reload()
   await expect(page).toHaveURL(/\/accounts$/)
-  await expect(page.locator('tbody tr')).toHaveCount(3)
+  await expect(page.locator('tbody tr')).toHaveCount(count)
   await page.getByRole('button', { name: '退出登录' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await page.goto('/accounts')
@@ -33,11 +41,11 @@ test('人事角色不能打开系统账号或直接调用管理员接口', async
   await expect(page.getByRole('heading', { name: '当前账号没有访问权限' })).toBeVisible()
 })
 
-test('员工手机端可查看身份，考勤待开发且管理接口不可访问', async ({ page }) => {
+test('员工手机端可查看身份与考勤入口，管理接口不可访问', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page, '员工')
   await expect(page.getByRole('heading', { name: '今日考勤' })).toBeVisible()
-  await expect(page.getByText('打卡功能即将接入')).toBeVisible()
+  await expect(page.getByRole('link', { name: '进入考勤页面', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '我的身份' })).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,

@@ -1,0 +1,29 @@
+{
+  "name": "联智员工移动端",
+  "appid": "",
+  "description": "员工考勤移动客户端",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "vueVersion": "3",
+  "h5": {
+    "router": {
+      "mode": "hash"
+    }
+  },
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": true
+    },
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于核对本人是否在授权办公场所打卡"
+      }
+    },
+    "requiredPrivateInfos": ["getLocation"]
+  },
+  "locale": "zh-Hans",
+  "uniStatistics": {
+    "enable": false
+  }
+}

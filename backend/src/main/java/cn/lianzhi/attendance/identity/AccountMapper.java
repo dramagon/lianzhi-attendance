@@ -6,7 +6,7 @@ import java.util.List;
 @Mapper
 public interface AccountMapper {
     String COLUMNS = "u.id, u.username, u.password_hash, u.display_name, u.role, u.employee_no, "
-            + "u.department_id, d.name AS department_name, u.enabled, u.created_at";
+            + "u.department_id, d.name AS department_name, u.enabled, u.created_at, u.company_id, u.auth_version";
 
     @Select("SELECT " + COLUMNS + " FROM sys_user u LEFT JOIN sys_department d ON d.id=u.department_id WHERE u.username=#{username}")
     UserAccount findByUsername(String username);

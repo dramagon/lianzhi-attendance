@@ -7,13 +7,12 @@ import {
   OfficeBuilding,
   ArrowRight,
   Calendar,
-  Clock,
   Location,
   Document,
-  ChatDotRound,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import http from '../api'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 const overview = ref(null)
@@ -105,13 +104,13 @@ onMounted(load)
       <section class="panel attendance-panel">
         <div class="panel-heading">
           <h2>{{ auth.isEmployee ? '今日考勤' : '考勤概览' }}</h2>
-          <span class="tag tag-neutral">待接入</span>
+          <span class="tag tag-neutral">业务查询</span>
         </div>
         <div class="empty-attendance">
           <div class="empty-icon"><Calendar /></div>
-          <h3>{{ auth.isEmployee ? '打卡功能即将接入' : '考勤数据将在打卡功能上线后展示' }}</h3>
-          <p>当前已完成登录与权限基础。二维码打卡、人脸验证和考勤统计将按阶段接入。</p>
-          <RouterLink to="/roadmap" class="text-link">查看建设进度<ArrowRight /></RouterLink>
+          <h3>查看正式排班与考勤记录</h3>
+          <p>查看排班、打卡与申请记录，管理员与人事可在统计报表查看授权范围内的数据。</p>
+          <RouterLink to="/attendance" class="text-link">进入考勤页面<ArrowRight /></RouterLink>
         </div>
       </section>
       <section class="panel identity-panel">
@@ -120,7 +119,7 @@ onMounted(load)
           <RouterLink to="/profile" class="text-link">查看详情<ArrowRight /></RouterLink>
         </div>
         <div class="identity-summary">
-          <span class="avatar avatar-large">{{ auth.user.displayName.slice(-2) }}</span>
+          <UserAvatar :user="auth.user" size="large" />
           <div>
             <h3>{{ auth.user.displayName }}</h3>
             <span class="tag tag-blue">{{ auth.user.roleName }}</span>
@@ -155,43 +154,22 @@ onMounted(load)
             <p>查看账号与角色分配</p>
           </div>
           <ArrowRight /></RouterLink
+        ><RouterLink v-if="auth.can('organization:manage')" to="/organization"
+          ><span class="quick-icon blue"><Location /></span>
+          <div>
+            <b>组织与场所</b>
+            <p>维护员工与办公地点</p>
+          </div>
+          <ArrowRight /></RouterLink
         ><RouterLink to="/profile"
           ><span class="quick-icon purple"><Document /></span>
           <div>
             <b>个人信息</b>
             <p>查看自己的基础资料</p>
           </div>
-          <ArrowRight /></RouterLink
-        ><RouterLink to="/roadmap"
-          ><span class="quick-icon green"><Clock /></span>
-          <div>
-            <b>建设进度</b>
-            <p>了解已完成与后续模块</p>
-          </div>
           <ArrowRight
         /></RouterLink>
       </div>
     </section>
-    <div class="section-caption">
-      <h2>逐步连接每个工作环节</h2>
-      <span>以下能力正在按计划建设</span>
-    </div>
-    <div class="upcoming-grid">
-      <article
-        v-for="item in [
-          { name: '组织与场所', description: '连接部门、员工与办公地点', icon: Location },
-          { name: '考勤与审批', description: '打卡、请假、补卡和加班', icon: Calendar },
-          { name: 'AI 业务助手', description: '企业制度问答与考勤查询', icon: ChatDotRound },
-        ]"
-        :key="item.name"
-      >
-        <component :is="item.icon" />
-        <div>
-          <h3>{{ item.name }}</h3>
-          <p>{{ item.description }}</p>
-        </div>
-        <span>待开发</span>
-      </article>
-    </div>
   </template>
 </template>

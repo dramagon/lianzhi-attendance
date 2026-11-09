@@ -27,6 +27,19 @@ class SecurityIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired AccountMapper accounts;
     @Autowired PasswordEncoder passwords;
+    @Autowired JdbcTemplate jdbc;
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void existingDefaultNamesAreNumberedAndCustomNamesArePreserved() {
+        jdbc.update("UPDATE sys_user SET display_name='演示管理员' WHERE username='admin'");
+        jdbc.update("UPDATE sys_user SET display_name='人事二' WHERE username='hr'");
+        long count = accounts.count();
+        new AccountBootstrap(accounts, jdbc, passwords, true, "").run(new DefaultApplicationArguments());
+        assertThat(jdbc.queryForObject("SELECT display_name FROM sys_user WHERE username='admin'", String.class)).isEqualTo("管理员一");
+        assertThat(jdbc.queryForObject("SELECT display_name FROM sys_user WHERE username='hr'", String.class)).isEqualTo("人事二");
+        assertThat(accounts.count()).isEqualTo(count);
+    }
 
     private MockHttpSession login(String username) throws Exception {
         MvcResult csrf = mvc.perform(get("/api/auth/csrf")).andExpect(status().isOk()).andReturn();
@@ -65,11 +78,14 @@ class SecurityIntegrationTest {
     }
     @Test void adminCanSeeAccountsButNoPasswordHash() throws Exception {
         MockHttpSession session = login("admin");
+        // MySQL验证库可以保留页面验收账号，按真实持久化数量校验，不清空数据库。
+        long total = accounts.count();
+        assertThat(total).isGreaterThanOrEqualTo(3);
         mvc.perform(get("/api/admin/accounts").session(session)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data.length()").value(total))
                 .andExpect(jsonPath("$.data[0].passwordHash").doesNotExist());
         mvc.perform(get("/api/management/overview").session(session))
-                .andExpect(jsonPath("$.data.totalAccounts").value(3));
+                .andExpect(jsonPath("$.data.totalAccounts").value(total));
     }
     @Test void hrCannotReadAdminAccounts() throws Exception {
         MockHttpSession session = login("hr");

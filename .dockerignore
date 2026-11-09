@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/target
+**/dist
+**/data
+**/.env*
+**/*.log
+artifacts
+**/artifacts
+**/test-results
+**/playwright-report
+**/__pycache__

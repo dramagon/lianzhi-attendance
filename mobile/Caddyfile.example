@@ -1,0 +1,13 @@
+# Replace the example host/path with A's actual LAN/DNS configuration.
+# Trust the generated local CA explicitly on the test phone; never auto-install certificates.
+https://your-mobile-host.example:8443 {
+    tls internal
+    handle /api/* {
+        reverse_proxy 127.0.0.1:18080
+    }
+    handle {
+        root * C:/path/to/lianzhi-attendance/mobile/dist/build/h5
+        try_files {path} /index.html
+        file_server
+    }
+}
