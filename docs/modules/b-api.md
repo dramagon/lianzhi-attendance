@@ -133,3 +133,31 @@ MySQL8.4.13上23项业务/并发/回滚测试及1项数据库重启后新JVM检�
 ## 课堂整站展示（2026-11-04）
 
 展示台新增“一键整站演示”，在原有打卡与审批5步后调用C的正式报表、知识库和助手API，核对同一日记录及审批来源；无新增绕过权限的业务写入口。每轮合成制度生成DOCX，实际上传并等待解析结果，再按员工权限检索并核对引用。报表导出使用C现有CSV接口。失败会停止，不继续标记后续成功。流程、运行方式及边界见[课堂说明](../../tools/classroom/README.md)。
+
+## 个人月度考勤视图
+
+考勤记录页新增“个人月度考勤”，复用`GET /api/attendance/me/days?from=YYYY-MM-01&to=YYYY-MM-DD`，按整月查询本人正式排班与审批回写后的日结果。不增加服务端接口或迁移，不传入其他员工ID。下方原始打卡事件仍使用自己的日期筛选和分页，两处查询范围独立。
+
+月历展示服务端状态、签到/签退、有效工时、获批请假/加班、迟到/早退、跨天提示、计算说明和审批来源ID。没有日记录显示“无排班记录”，不视作缺勤；PENDING按“待结算”展示。月度汇总只累计当前成功返回的日记录，不推算无记录日期的工时或出勤率。
+
+导出按钮生成UTF-8 BOM的本人月度CSV，包含日期、状态、场所编号、北京时间、分钟数和审批来源；没有坐标、二维码、口令、人脸或其他员工数据。CSV单元格做引号转义及公式前缀处理。切换月份、身份或服务状态立即清除旧结果，使用请求版本检查拒绝迟到的旧响应；失败明确提示并禁用导出，可手动重试。月历与CSV是已有服务数据的只读呈现，不提交补卡或改变审批状态。
+
+
+## B云端收尾与uni-app客户端
+
+B收尾以A 1562571为共同基线，保留真实ArcSoftFaceProvider与可选/强制策略。SDK适配已实现，A用户已确认本人验证，不再将其标成尚未实现；云端仍不启用真实WindowsSDK或推断反例/完整含凭据打卡已通过。
+
+独立mobile复用现有/auth/csrf、/auth/login、/auth/session、/auth/logout、/employees/me、/attendance/status、/attendance/me/workplaces、/attendance/me/punches、/attendance/me/punches/requests/{requestId}、/attendance/me/records、/attendance/me/days与/face/*。人脸更新继续multipart PUT并携带expectedRevision；原生端通过uni.request发送ArrayBuffer，无新增API或请求方法别名。
+
+H5使用同源浏览器Cookie，小程序JSESSIONID/SESSION仅在运行内存维护并接受轮换；每个写请求取得当前CSRF，不重放失败写请求。C若更改会话Cookie名称，须协调该客户端的白名单及原生测试，不自行切换JWT。接口字段、审批和考勤口径未改变，A/C后端调用方无需改接；生产HTTPS、合法域名及静态反向代理由A/C部署接线。
+
+未知结果只保存本人请求编号、方向和用户ID；允许另一个已登录同账号客户端手工输入原编号做只读回执核对。后端仍按当前身份查询，不转交人脸验证、不补发事件、不新增发现他人请求的能力。图像不写客户端持久业务存储，H5 Blob按授权/生命周期释放，二进制上传缓冲清零。
+
+构建、平台差异与范围见[移动端](../../mobile/README.md)，现场未执行项见[手机清单](../team/member-b-mobile-checklist.md)。WindowsSDK静态检查脚本不激活SDK、不显示配置值，不代替实际人脸通过证据。
+
+
+## B配合验收补充
+
+本轮没有改变服务器接口。移动端增加采集取消/版本隔离、后台旧响应防护；待核对编号在认证确认后立即恢复，不因employees/me失败而漏恢复。设备验收只在本端生成OPERATOR_REPORTED_NOT_SERVER_ATTESTATION报告，未执行不自动标通过，含人脸打卡PASS需原始记录编号，A仍需核实。设备报告不作为服务端身份、授权或打卡凭据。
+
+对C692d90c实际会话实现完成一次隔离组合验证：沿用JSESSIONID、逐次CSRF，B会话客户端交替请求两个C后端实例，真实MySQL/Redis、打卡/回执/退出通过。HTTP适配器验证不能替代原生微信或实际HTTPS。复现脚本scripts/verify-b-c-session.py依赖C工作区的隔离工具，源码只读复制到ignored测试目录，不更改或合并C分支。

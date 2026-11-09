@@ -4,7 +4,7 @@
 
 ## 直接运行
 
-1. 完整解压`classroom-demo.zip`。Windows双击`start-demo.cmd`；Linux/macOS运行`sh start-demo.sh`。
+1. 完整解压`classroom-demo.zip`。Windows可先双击`check-demo.cmd`自检，通过后双击`start-demo.cmd`；Linux/macOS运行`sh start-demo.sh`。
 2. Windows脚本启动成功后自动打开浏览器；也可访问`http://127.0.0.1:18080/login?redirect=/attendance/presentation`。
 3. 点击登录页的“管理员”，再点“登录工作台”。公开演示密码为`Lianzhi@2026`，按钮会自动填入。
 4. 保留启动窗口，点击“一键整站演示”，或按演示台1—8逐步操作；“一键完整演示”仍只运行原来的考勤审批5步。Windows窗口按回车、Linux终端按Ctrl+C停止本次服务。
@@ -14,6 +14,16 @@
 同一天在同一浏览器重开页面或重启同一个展示包后，可自动恢复，或点“恢复上次进度”。页面只在浏览器保存合成账号与请求/记录编号；恢复时重新登录合成员工并核对员工、场所、事件和审批，不保存Cookie、密码、二维码或照片，也不重新提交打卡/申请。换库、身份不匹配或已跨天时按提示重新准备，历史数据不会被删除。浏览器禁止长期存储时本页仍可演示，但关闭后不保证恢复。
 
 如果没有Java，先安装OpenJDK17或以上并配置JAVA_HOME或PATH。本云端尝试获取官方Windows运行时被网络代理返回403，因此本包不含Windows JRE；不能声称尚未在现场执行的Windows启动已经验证。
+
+## 展示前自检与排错
+
+Windows双击`check-demo.cmd`：核对完整解压的程序与脚本SHA-256、Java17+、端口18080以及目录可写性。检查本身不启动后端、不创建数据库。启动器也会重复检查，通过后才启动，并最多等待120秒；端口被占用时不会停止已有进程。检查完成按回车关闭，再用start-demo.cmd启动。
+
+自动化调用可用`powershell -NoProfile -File .\start-demo.ps1 -CheckOnly -NoPause`，通过退出0，失败退出1。Windows启动报错时保留窗口提示；服务启动后的日志在demo-data/backend.log及backend-error.log。浏览器未自动打开时可手动访问上面的地址，服务会继续运行。
+
+Linux/macOS可运行`sh start-demo.sh --check`，检查文件校验值、Java17+和目录写入；端口是否可用由后续实际启动确认。SHA-256校验用于发现解压缺失或意外损坏，不是数字签名。不要手动修改包内启动脚本；需修改时从源码重新打包。保留demo-data，不靠删除数据库解决启动失败。
+
+启动器优先使用目录内runtime/bin/java（Windows为java.exe），然后JAVA_HOME，最后系统PATH；runtime是可选的、由现场自行准备的对应平台可信Java17+运行时，本次ZIP不捆绑Windows JRE。官方运行时下载在云端仍被代理403阻断。云端未执行Windows PowerShell，不把Linux测试当成Windows现场通过。
 
 ## 建议展示顺序（约3分钟）
 
@@ -53,6 +63,12 @@
 python scripts/build-classroom-demo.py
 ```
 
-输出在`artifacts/classroom-demo/`与`artifacts/classroom-demo.zip`。构建器拒绝明显过时的编译产物，保留Spring Boot嵌套JAR压缩格式。打包前先停止正在运行的展示包；压缩包只包含明确列出的程序、启动脚本、说明及版本清单，不包含demo-data、运行日志、Cookie或上传内容。
+输出在`artifacts/classroom-demo/`与`artifacts/classroom-demo.zip`。构建器拒绝明显过时的编译产物，保留Spring Boot嵌套JAR压缩格式。打包前先停止正在运行的展示包；压缩包只包含明确列出的程序、启动/检查脚本、说明、版本清单及checksums.sha256，共8个文件，不包含demo-data、运行日志、Cookie或上传内容。
 
 `manifest.json`记录源码提交和工作区是否有未提交更改。生成的二进制包和运行数据不提交Git；源码、构建器和测试随B分支交付。
+
+## 员工个人月度考勤
+
+以员工身份进入“考勤记录”，可按月查看日历、有效工时与获批请假/加班，点日期查看服务端计算说明和审批来源，点击“导出本人月度CSV”用Excel核对。无排班记录不等于缺勤，待结算不提前判定异常。原始打卡事件仍保留在下面，并使用自己的起止日期筛选；需要比较时把两处日期范围选一致。异常日可前往申请页核对或补卡，仍须填写、确认并正常审批，不会自动写入。
+
+要在课堂包里展示本轮合成员工的月历：完成考勤审批5步后进入“考勤记录”；若运行的是整站8步，先点“恢复上次进度”切回合成员工，再进入记录页。恢复只查询，不重复打卡或申请。跨月的次日请假需要选择下个月查看。

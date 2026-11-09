@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package built backend + frontend as an isolated, offline classroom app. No runtime data included."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -31,7 +32,7 @@ def main():
                 target.writestr(entry, source.read(entry.filename))
         for asset in dist.rglob('*'):
             if asset.is_file(): target.write(asset, 'BOOT-INF/classes/static/'+asset.relative_to(dist).as_posix())
-    for filename in ['start-demo.cmd','start-demo.ps1','start-demo.sh']:
+    for filename in ['start-demo.cmd','start-demo.ps1','start-demo.sh','check-demo.cmd']:
         if filename.endswith(('.cmd','.ps1')):
             # Packaging runs on Linux too; Windows launchers must keep Windows line endings.
             text=(ROOT/'tools/classroom'/filename).read_text(encoding='utf-8').replace('\r\n','\n')
@@ -41,7 +42,8 @@ def main():
     (output/'start-demo.sh').chmod(0o755)
     (output/'README.txt').write_text('''联智课堂展示包（合成测试数据，不作真实员工考勤）
 
-Windows：完整解压到普通目录，双击 start-demo.cmd，保留窗口。
+Windows：完整解压到普通目录，可先双击 check-demo.cmd 自检，再双击 start-demo.cmd，保留窗口。
+自检核对文件完整性、Java17+、端口和目录写入，不启动业务服务或创建演示数据库。
 Linux/macOS：在目录运行 sh start-demo.sh。
 需要 Java 17 或以上，可通过 JAVA_HOME 指定；运行时不需要 Node、MySQL、Python、网络或人脸SDK。
 首次启动在空的demo-data目录创建自己的演示库，不读取原项目数据库。
@@ -65,11 +67,19 @@ Linux/macOS：在目录运行 sh start-demo.sh。
 ''', encoding='utf-8-sig')
     commit = subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip()
     dirty = bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip())
-    (output/'manifest.json').write_text(json.dumps({'commit':commit,'working_tree_dirty':dirty,'mode':'classroom','real_face_sdk':False,'answer_mode':'OFFLINE_EXTRACTIVE','modules':['organization','attendance','approval','reports','knowledge','assistant']},indent=2))
+    file_hashes={}
+    for name in ['app.jar','start-demo.cmd','start-demo.ps1','start-demo.sh','check-demo.cmd','README.txt']:
+        digest=hashlib.sha256()
+        with (output/name).open('rb') as source:
+            for block in iter(lambda:source.read(1024*1024),b''): digest.update(block)
+        file_hashes[name]=digest.hexdigest()
+    # sha256sum/shasum interpret CR as part of a filename; keep the shared manifest LF on Windows too.
+    (output/'checksums.sha256').write_bytes(''.join(f'{digest}  {name}\n' for name,digest in file_hashes.items()).encode('ascii'))
+    (output/'manifest.json').write_text(json.dumps({'fileHashes':file_hashes,'commit':commit,'working_tree_dirty':dirty,'mode':'classroom','real_face_sdk':False,'answer_mode':'OFFLINE_EXTRACTIVE','modules':['organization','attendance','approval','reports','knowledge','assistant']},indent=2))
     archive = output.parent/(output.name+'.zip')
     # Explicit allowlist: never include demo-data, logs, uploaded pictures, credentials or prior files.
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as package:
-        for filename in ['app.jar','start-demo.cmd','start-demo.ps1','start-demo.sh','README.txt','manifest.json']:
+        for filename in ['app.jar','start-demo.cmd','start-demo.ps1','start-demo.sh','check-demo.cmd','README.txt','manifest.json','checksums.sha256']:
             package.write(output/filename,output.name+'/'+filename)
     print(json.dumps({'directory':str(output),'archive':str(archive),'bytes':archive.stat().st_size},ensure_ascii=False))
 

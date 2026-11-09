@@ -24,3 +24,13 @@
 交付B模块接口文档、自动测试、移动端源码与构建产物说明、现场验收脚本/表、分支SHA和PR；API变化列出A/C调用方影响。不能把测试替身、云端编译或普通打卡成功标作真实人脸打卡验收通过。
 
 默认收尾分支 `codex/member-b-cloud-finish`，PR目标 `codex/member-a-release-validation`。每个小阶段验证后即push并报告；不要在云端尝试直接改A本机环境。
+
+## 本轮云端交付索引
+
+- B1整合与人脸凭据边界：`member-b-cloud-finish`已保留A1562571及B月历/自检，首阶段212887b；后端365项（1项真实WindowsSDK条件跳过）、主站浏览器52项通过，见[基线验证](../verification/member-b-cloud-baseline.md)。
+- B2移动端源码位于`mobile/`，H5/mp-weixin可构建，协议8项及H5浏览器5项通过；跨浏览器回执只读恢复及SDK页面契约替身明确区分，见[移动验证](../verification/member-b-mobile-cloud.md)。
+- B3离线静态SDK检查器、HTTPS配置样例与[现场清单](member-b-mobile-checklist.md)已提供；A原Java/ArcFace授权不重做。所有真机、原生微信与新增真人反例/含凭据打卡项仍等待现场实测，不能按云端编译标成通过。
+
+## B配合工作补充
+
+移动端现有可离线填写/导出/手动分享的设备验收页，默认未执行且不上传报告；补修选图等待撤回/换页旧结果、后台识别/写入晚响应、档案故障时优先恢复待核对编号。移动单测11项、H5完整11项、双目标构建通过。采用C692d90c真实MySQL/Redis及两个JVM，B会话客户端跨节点25请求、事件唯一性及退出通过；范围是HTTP适配器，非原生微信/真机或TLS。见[配合证据](../verification/member-b-cooperation.md)。A仍须实际设备操作及最终合并，不能从云端报告自动填写现场通过。
