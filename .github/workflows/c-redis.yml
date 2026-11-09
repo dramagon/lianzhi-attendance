@@ -1,4 +1,4 @@
-name: C真实Redis共享会话验证
+name: Redis共享会话测试
 on:
   pull_request:
   workflow_dispatch:

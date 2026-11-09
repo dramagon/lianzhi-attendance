@@ -1,4 +1,4 @@
-name: C容器集成验证
+name: 容器与集群集成测试
 on:
   pull_request:
   workflow_dispatch:

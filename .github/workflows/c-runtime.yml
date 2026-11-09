@@ -1,4 +1,4 @@
-name: C跨平台启动配置验证
+name: 跨平台启动配置测试
 on:
   pull_request:
   workflow_dispatch:
