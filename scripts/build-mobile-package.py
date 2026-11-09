@@ -30,7 +30,7 @@ def main():
                 entries[f'{target}/{path.relative_to(folder).as_posix()}']=path.read_bytes()
     entries['README.md']=(mobile/'README.md').read_bytes()
     entries['Caddyfile.example']=(mobile/'Caddyfile.example').read_bytes()
-    entries['acceptance.md']=(ROOT/'docs/team/member-b-mobile-checklist.md').read_bytes()
+    entries['acceptance.md']=(ROOT/'docs/mobile-checklist.md').read_bytes()
     entries['tools/check-face-environment.py']=(ROOT/'scripts/check-face-environment.py').read_bytes()
     # Every local Weixin component referenced by generated JSON must ship with the bundle.
     for name,data in entries.items():

@@ -76,4 +76,4 @@ python tools/mobile-acceptance/start.py \
 
 ## 真机验收清单
 
-在`docs/team/member-b-mobile-checklist.md`填写实际结果。当前没有真实手机结果，请保持“未执行”，不能把浏览器仿真定位、摄像头模拟或自动HTTPS请求当成真机通过。
+在`docs/mobile-checklist.md`填写实际结果。当前没有真实手机结果，请保持“未执行”，不能把浏览器仿真定位、摄像头模拟或自动HTTPS请求当成真机通过。

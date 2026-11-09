@@ -1,22 +1,14 @@
-# 接口与权限约定
+# 接口与权限
 
-可选Redis共享Session已提供显式开关，默认仍为本机Session。登录/CSRF路径和JSESSIONID不变，Redis故障返回503 SESSION_STORE_UNAVAILABLE、data=null；不会回退为本机认证。配置、确认草稿及兼容边界见[C共享会话](modules/c-redis-session.md)。
+接口使用服务端Session、HttpOnly Cookie和CSRF。浏览器通过同源 `/api` 访问，身份及数据范围由服务端核对。
 
-本人修改密码使用 `POST /api/profile/password`，要求Session与CSRF，成功后所有旧会话失效，详见[A模块](modules/a-api.md)。
-
-2026-11-07 排班及打卡支持WGS84和GCJ02场所。档案保留原坐标，考勤目录返回服务端换算的WGS84场所点，员工仍上报WGS84。范围及数值验证见[B模块说明](modules/b-api.md)。
-
-2026-11-08 非强制场所也可选择本次人脸识别。创建新打卡时，非null的 `faceVerificationId` 必须由服务端校验并一次性消费；没有凭据时仍遵守原场所/全局强制策略及二维码、定位约束。详见[B模块人脸契约](modules/b-api.md)。
-
-C第六阶段新增 `GET /api/reports/attendance`（授权汇总、趋势、场所热度及日记录分页）和 `GET /api/reports/attendance/export`（同筛选、同权限、带公式注入防护的CSV附件）。仅ADMIN/HR，最长94天、最多100名当前启用员工。接口参数、分母及边界见[报表契约](modules/c-reports.md)。
-
-C第五阶段新增授权汇总 `GET /api/assistant/attendance/summary`，以及均需CSRF的申请预览 `POST /api/assistant/approval-drafts`、明确确认提交 `POST /api/assistant/approval-drafts/confirm`、取消 `POST /api/assistant/approval-drafts/{id}/cancel`。预览不创建申请；确认后仍通过A正常服务鉴权与幂等。详见[第五阶段契约](modules/c-day5-actions.md)。
-
-三人协作API分别记录在 [A：组织、员工与场所（A1已接通）](modules/a-api.md)、[B：考勤与人脸](modules/b-api.md)、[C：报表与AI](modules/c-api.md)。跨模块约定见 [公共约定](team/contracts.md)。下文保留基础接口。
-
-A2.2已接通 `/api/approvals` 的真实提交、分页记录、详情、审批/拒绝/撤回与审计，审核和B考勤调整同事务；状态和内容校验接口保留。所有写接口需CSRF，管理访问按公司范围，详见[A模块文档](modules/a-api.md)。
-
-C整合分支提供 `/api/assistant/status`、`/api/assistant/attendance`、`/api/assistant/approvals` 及申请详情，只读复用A/B真实权限和数据。制度问答POST `/api/assistant/ask`因知识库未接入保持503并要求CSRF；详见[C助手文档](modules/c-assistant.md)。
+| 业务 | 文档 |
+| --- | --- |
+| 账号、组织、员工、场所与审批 | [组织与审批](modules/organization-api.md) |
+| 排班、考勤与人脸 | [考勤](modules/attendance-api.md) · [人脸配置](modules/face-setup.md) |
+| 报表与导出 | [报表](modules/reports.md) |
+| 知识库与AI | [知识库](modules/knowledge-api.md) · [申请确认](modules/assistant-actions.md) |
+| 共享登录 | [Redis会话](modules/redis-session.md) |
 
 浏览器通过同源 `/api` 访问。成功响应格式：`{"code":"OK","message":"操作成功","data":...}`。认证失败为 HTTP 401；权限或 CSRF 校验失败为 HTTP 403；错误响应的 `data` 为 null。
 
@@ -50,28 +42,14 @@ C整合分支提供 `/api/assistant/status`、`/api/assistant/attendance`、`/ap
 
 账号响应使用 `UserView`，不包含密码哈希。后端通过角色校验授权，前端隐藏菜单和路由守卫只是用户体验的一部分。
 
-UserView新增可空 `avatarUrl`；所有角色可在个人信息上传/移除本人头像。头像GET成功返回JPEG二进制，其他头像接口返回ApiResponse<UserView>，上传限制与文件保存说明见[A模块文档](modules/a-api.md)。账号初始/重设密码最低4位，UTF-8最多72字节，前后端及MySQL启动脚本一致。
+UserView新增可空 `avatarUrl`；所有角色可在个人信息上传/移除本人头像。头像GET成功返回JPEG二进制，其他头像接口返回ApiResponse<UserView>，上传限制与文件保存说明见[A模块文档](modules/organization-api.md)。账号初始/重设密码最低4位，UTF-8最多72字节，前后端及MySQL启动脚本一致。
 
-## 当前数据范围
+## 数据范围
 
-- 管理看板读取数据库中的账号、启用账号、已使用角色与部门数量；ADMIN看全局，HR仅看所属公司，未分配公司的HR显示0且不允许访问公司业务接口。
-- 日期按 Asia/Shanghai 计算。
-- 考勤能力返回 `attendanceAvailable: false`；前端显示待接入，不把“尚未统计”当作0次缺勤。
-- 原管理员账号GET查询保留全量读取行为；“系统账号”页提供“分配账号”和“管理账号”入口，维护复用 `/api/employees`，执行服务端公司范围及本人范围检查，详见A模块文档。
-- 模块进度来自服务端维护的开发清单，不是用户的考勤或工作完成记录。
+员工默认访问本人资料、考勤、申请，以及本人或所属公司有权阅读的文档。人事按所属公司管理，管理员按平台范围管理。前端菜单与路由守卫辅助展示，后端始终重新校验权限。
 
-## 后续扩展边界
+账号响应不包含密码哈希。角色、密码、公司或启用状态变更会使旧会话失效。原始打卡与审批调整分别保留来源，报表及助手复用统一考勤口径。
 
-A1已接通公司、部门、员工和场所基础维护，本机MySQL已通过迁移及集成验证；外部地图仍待独立验证。B负责考勤规则和打卡、独立人脸识别适配层；A2审批已在B正式V3之后接通V4和调整服务。真实密钥和人脸数据均不写入仓库。
+## 可选能力
 
-## B模块
-
-2026-11-03新增独立课堂展示包：仅显式启用classroom+demo时提供已认证的`GET /api/attendance/presentation`状态。普通应用不启用；展示写入继续使用原有受权限和CSRF保护的API，详见[展示说明](../tools/classroom/README.md)。
-
-考勤接口、迁移、排班与联调边界见[B接口文档](modules/b-api.md)。
-
-2026-11-01新增`GET /api/attendance/me/punches/requests/{requestId}`，只读查询当前登录者的打卡回执，用于网络恢复后核实已落库结果，不自动重发打卡。返回`found/event`及暂未查到的处理边界见B接口文档。
-
-同日后续新增本人`POST/PUT/DELETE /api/face/enrollment`、`POST /api/face/challenges`和multipart验证流程，打卡支持`faceVerificationId`。业务与安全流程已有实现，实际虹软适配器与授权尚缺，处理默认关闭（2026-11-03已整合正式V4/V4.1/V5存储）；完整字段及启用条件见B接口文档与[人脸接入说明](modules/b-face-integration.md)。
-
-C收尾当前接口与V6生命周期以[收尾契约](modules/c-completion.md)为准，取代旧阶段“知识库关闭”的当前描述；早期记录保留历史事实。
+人脸、模型、向量、OCR及转写状态以对应状态接口为准。未配置或服务不可用时返回明确错误，不生成成功记录。模型申请建议只生成草稿，写入必须经过预览与用户明确确认。Redis不可用时共享会话请求返回503，不回退为本地身份。

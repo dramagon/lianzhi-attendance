@@ -61,7 +61,7 @@ def load_environment(path):
 def executable(path, label):
     path = Path(path).expanduser().resolve()
     if not path.is_file():
-        raise RuntimeError(label + ' was not found; see c-media-services.md')
+        raise RuntimeError(label + ' was not found; see media-services.md')
     return path
 
 

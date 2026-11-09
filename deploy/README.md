@@ -1,10 +1,10 @@
-# C 同源容器部署
+# Docker Compose部署
 
-需要Redis共享会话时按[C共享会话说明](../docs/modules/c-redis-session.md)叠加 `compose.redis.yaml` 并填写本机Redis密码；默认Compose不自动启动或启用Redis。新增配置支持服务认证、健康检查、独立数据卷和受控故障行为。
+需要Redis共享会话时按[共享会话说明](../docs/modules/redis-session.md)叠加 `compose.redis.yaml` 并填写本机Redis密码；默认Compose不自动启动或启用Redis。新增配置支持服务认证、健康检查、独立数据卷和受控故障行为。
 
-Windows 或 Linux 单机 MySQL + 本地真实模型组合启动见 [C 正式服务说明](../docs/modules/c-mysql-ai.md)，配置样例为 `c-mysql-ai.env.example`。本文件的 Compose 与单机启动分别验收，不共享默认数据目录。
+Windows 或 Linux 单机 MySQL + 本地真实模型组合启动见 [MySQL与AI服务说明](../docs/modules/mysql-ai.md)，配置样例为 `c-mysql-ai.env.example`。本文件的 Compose 与单机启动分别验收，不共享默认数据目录。
 
-本目录提供Java17后端、Node22前端构建、Nginx同源代理和MySQL8.4配置。与B的`tools/classroom`展示包分开：此配置显式使用`mysql`，不启用demo/classroom，不生成演示账号。
+本目录提供Java17后端、Node22前端构建、Nginx同源代理和MySQL8.4配置。与`tools/classroom`离线体验包使用不同配置：此配置显式使用`mysql`，不启用demo/classroom，不生成演示账号。
 
 ## 使用
 
@@ -28,31 +28,14 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 - 本地HTTP默认`SESSION_COOKIE_SECURE=false`。实际手机摄像头/定位与互联网部署需可信HTTPS；在TLS入口后设为true并按域名配置证书。此文件没有申请证书或部署公网入口，不能当作HTTPS现场验收。
 - 后端绑定容器内部0.0.0.0，外部默认仅127.0.0.1:8088。需要局域网时单独配置WEB_BIND_ADDRESS，配合TLS入口和明确访问范围。
 - 头像卷属于非root应用用户，数据库密码不写入镜像。实际备份/恢复由部署方执行，先备份再升级，不修改已发布迁移或开启out-of-order。
-- 本整合版正式迁移为V1/V2/V3/V4/V4.1/V5；没有V6。人脸SDK、密钥、阈值均未配置，Compose明确关闭人脸处理。模型/OCR/转写/向量服务同样没有自动启用。
-- 高德凭据属于前端构建配置。此模板不复制本机`.env.local`到构建上下文，因此默认地图SDK未配置；已有坐标管理和报表分布图可用，真实高德接入按A文档单独构建和验证。
-- 单实例部署：会话及C申请确认草稿在内存中，重启使会话失效。真实A申请在MySQL持久化；结果未知时先查询，不能自动重新提交。没有Redis共享会话、多副本负载均衡或异步报表任务。
+- 数据库通过Flyway依次应用V1至V6（含V4.1）。人脸SDK、密钥、阈值均未配置，Compose明确关闭人脸处理。模型/OCR/转写/向量服务同样没有自动启用。
+- 高德凭据属于前端构建配置。此模板不复制本机`.env.local`到构建上下文，因此默认地图SDK未配置；已有坐标管理和报表分布图可用，真实高德接入按场所配置文档单独构建和验证。
+- 单实例部署：会话及申请确认草稿在内存中，重启使会话失效。申请在MySQL持久化；结果未知时先查询，不能自动重新提交。需要多实例共享会话时使用可选Redis配置；本文件默认运行单实例。
 
-## 第六阶段历史状态（2026-11-04收尾前）
+## 相关配置
 
-本机未安装/发现Docker命令，Compose YAML已由PyYAML加载并核对服务/端口结构，但**未执行docker compose config、镜像构建、Nginx启动或容器MySQL验收**。前后端在Windows分别构建和回归，不等同容器验证。B的独立MySQL结果见其11/03记录，不能替代本轮C报表的MySQL联验。
-
-## 课程技术要求记录
-
-| 项目 | 当前证据与后续 |
-| --- | --- |
-| Docker / 同源Nginx | 已交付配置；本机缺Docker，容器实跑待完成 |
-| GitHub Actions | 已有后端/前端/浏览器/地图流水线，不能替代云效验收 |
-| 云效 | 尚未配置项目、流水线或凭据 |
-| Redis / Spring Task | 未接入；当前同步报表限额读取，不宣称有缓存/调度 |
-| Nacos / OpenFeign | 未接入；团队契约规定模块化单体内优先Java服务调用，真实微服务接入须共同协调 |
-| Kubernetes | 未部署；不能将Compose当作K8s成果 |
-| ECharts | 本轮趋势和坐标热度用原生SVG，无新增共享依赖；ECharts课程学习/验收单独待落实 |
-| 预测 / 画像 | 未实现预测模型；当前仅授权历史/实时聚合，不宣称预测 |
-
-详细报表口径与权限见[报表契约](../docs/modules/c-reports.md)。
-
-## 收尾更新
-
-V6持久化知识库、Spring Task队列、真实OCR/转写/向量/问答适配、自然语言申请建议已接入。ECharts与透明工时预测基线也已交付。独立真实MySQL8.0.41的31项C测试及数据库重启1项通过；这是本机数据库验收，不等于容器通过。Docker本机未安装，新增C容器CI进行独立Compose构建、MySQL V6、同源登录、真实子进程解析、重启及删除失效验证；结果以GitHub运行记录为准。
-
-本机无需Docker的完整启动入口见[本机服务](../docs/modules/c-media-services.md)；Kubernetes声明及未实跑说明见[k8s部署](kubernetes/README.md)。最终验证与尚需整组完成的课程范围见[最终验收记录](../docs/verification/member-c-completion.md)。上述历史表格不代表收尾当前状态。
+- [本地模型与媒体服务](../docs/modules/media-services.md)
+- [Redis共享会话](../docs/modules/redis-session.md)
+- [Nacos与独立向量服务](embedding-discovery.md)
+- [备份与恢复](backup.md)
+- [Kubernetes](kubernetes/README.md)

@@ -14,7 +14,7 @@ builder=importlib.util.module_from_spec(spec);spec.loader.exec_module(builder)
 class MobilePackageTest(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
-        files={'mobile/src/main.js':'// fixture','mobile/package-lock.json':'{}','mobile/vite.config.js':'// fixture','mobile/README.md':'public guide','mobile/Caddyfile.example':'# example','scripts/check-face-environment.py':'# public tool','docs/team/member-b-mobile-checklist.md':'manual acceptance'}
+        files={'mobile/src/main.js':'// fixture','mobile/package-lock.json':'{}','mobile/vite.config.js':'// fixture','mobile/README.md':'public guide','mobile/Caddyfile.example':'# example','scripts/check-face-environment.py':'# public tool','docs/mobile-checklist.md':'manual acceptance'}
         for name,value in files.items():
             path=self.root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(value)
         for name,value in {'mobile/dist/build/h5/index.html':'fixture','mobile/dist/build/h5/assets/app.js':'fixture js','mobile/dist/build/h5/assets/app.js.map':'not shipped','mobile/dist/build/mp-weixin/app.json':'{}','mobile/dist/build/mp-weixin/pages/index/index.json':'{"usingComponents":{"acceptance-panel":"../../components/AcceptancePanel"}}','mobile/dist/build/mp-weixin/components/AcceptancePanel.js':'// component','mobile/dist/build/mp-weixin/components/AcceptancePanel.json':'{}','mobile/dist/build/mp-weixin/components/AcceptancePanel.wxml':'<view>fixture</view>','mobile/dist/build/mp-weixin/project.private.config.json':'private','mobile/dist/build/mp-weixin/private.json':'not compiled'}.items():

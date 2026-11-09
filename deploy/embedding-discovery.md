@@ -15,5 +15,3 @@ java -Dloader.main=cn.lianzhi.attendance.knowledge.provider.EmbeddingWorker -cp 
 Feign 连接超时 2 秒，读取超时 25 秒，关闭重试与重定向。实例不可用时返回向量失败，保留文本检索。切换直连与发现模式后重建向量索引，模型更新时同步递增修订号。
 
 验收时设置 `LIANZHI_C_NACOS_IT=true`，在 backend 执行 `mvnw.cmd -Dtest=NacosEmbeddingIT test`（Linux 使用 `./mvnw`）。需真实 Nacos 和已安装的 Ollama 模型。测试启动独立工作 JVM，验证无实例、认证失败、修订号不匹配、真实向量生成、实例停机及重启恢复。
-
-2026-11-09 在 Windows 使用启用认证的 Nacos 2.5.2 和 Ollama `qwen3-embedding:0.6b` 通过专项验证。打包后的 Spring 主应用与独立工作进程完成 DOCX 上传、索引和向量检索。后端完整 verify 共 421 项，420 项通过，1 项虹软授权条件跳过。测试使用独立演示库和合成制度。

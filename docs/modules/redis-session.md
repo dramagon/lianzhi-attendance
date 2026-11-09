@@ -1,7 +1,5 @@
 # 可选 Redis 共享会话
 
-2026-11-08，C2。默认 `LIANZHI_REDIS_ENABLED=false`，继续使用原本的进程内 Session；添加依赖本身不会开启 Redis。显式启用后使用 Spring Session Redis，保留现有表单登录、`JSESSIONID`、HttpOnly、SameSite=Lax、CSRF 和每次请求的账号版本检查。
-
 依赖由现有 Spring Boot3.5.16 BOM 管理：Spring Session3.5.7、Spring Data Redis3.5.13、Lettuce6.6.0.RELEASE；Java17要求和原框架不变。按 [Boot3.5说明](https://docs.spring.io/spring-boot/3.5/reference/web/spring-session.html)排除自动选择的会话/Redis配置，使用条件配置显式创建本功能需要的连接与过滤器，避免本机未部署Redis时被自动启用。使用基本 `RedisSessionRepository`，不要求订阅过期事件或修改Redis全局CONFIG。
 
 ## 配置与启动
@@ -69,8 +67,6 @@ python scripts/verify-c-redis.py --mysql-image mysql:8.4 --redis-image redis:7.4
 
 脚本创建全新目录、仅映射回环端口的MySQL与Redis容器，以及独立Java进程；MySQL镜像沿用主部署的mysql:8.4。已有本机程序时可将 `--mysql-image` 换为 `--mysql-bin <程序目录>`；Windows Redis可改用 `--redis-server <WSL中的Redis路径> --wsl-distro Ubuntu --redis-library-directory <WSL动态库目录>`，或Linux直接传本机Redis可执行文件。它不会连接已有业务库、调用FLUSHDB或停止系统服务。需要MySQL服务端/客户端程序、Redis程序或Docker和Java；默认不下载模型或调用付费服务。
 
-Windows本轮在Ubuntu24.04 WSL中用apt-get download取得Redis及运行库，再通过dpkg-deb解压到项目artifacts/redis-runtime，不执行软件包安装脚本或注册系统服务。对应包为Redis7.0.15的Ubuntu安全修订、libjemalloc2、liblzf1、libatomic1；使用可信Ubuntu仓库校验。其他机器可使用其已安装的Redis或上述固定容器镜像，版本结果写入验收JSON。
-
 加 `--browser` 会在API验收后启动独立Redis模式演示实例，运行仓库全部既有前端e2e；`--browser-only`只运行该浏览器范围。首次需在frontend安装依赖和Playwright Chromium，已有完整浏览器可通过 `--chromium` 指定路径。浏览器用例的数据保存在新H2演示目录；MySQL双实例验证与该浏览器范围分别记录。
 
-结果在 `artifacts/c-redis-*/result.json`，失败也保留证据；进程退出时删除临时密码配置并关闭自己的实例，保留合成数据库/AOF/日志供检查。新增CI执行真实MySQL、固定Redis镜像、双JVM登录/故障/恢复，并验证可选Compose配置；配置检查不冒充整套容器应用组网通过。运行结果与保留范围见[本阶段验收](../verification/member-c-redis-2026-11-08.md)。
+结果在 `artifacts/c-redis-*/result.json`，失败也保留证据；进程退出时删除临时密码配置并关闭自己的实例，保留合成数据库/AOF/日志供检查。新增CI执行真实MySQL、固定Redis镜像、双JVM登录/故障/恢复，并验证可选Compose配置；配置检查不冒充整套容器应用组网通过。运行结果与保留范围见验收。

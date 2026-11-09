@@ -1,6 +1,4 @@
-# C 文档解析组件（第 2 天）
-
-日期：2026-10-27。范围依据：[C 任务](../team/member-c.md)、[周计划](../team/member-c-week-plan.md)、[解析设计](../superpowers/specs/2026-10-27-document-parsing-design.md)。实际测试与环境结果见 [第 2 天记录](../verification/member-c-day2.md)。
+# 文档解析与来源定位
 
 ## Java 入口与业务边界
 
@@ -15,7 +13,7 @@ if (result.code() == ParseCode.SUCCESS) {
 
 `new DocumentParser(ParseOptions)` 接受每次解析的资源上限。`ParseResult` 包含 format/code/message/sections；正文列表不可变，所有失败（含 NO_TEXT）均无部分正文。文件名只用于类型校验，不作为磁盘路径使用；不读取服务器上同名文件。
 
-结果类型：`DocumentFormat` 包含 UNKNOWN/PDF/DOCX/XLSX/PPTX/XLS/PPT/DOC，其中 DOC 仅用于表达类型，本轮不支持解析。
+结果类型：`DocumentFormat` 包含 UNKNOWN/PDF/DOCX/XLSX/PPTX/XLS/PPT/DOC，其中 DOC 仅用于表达类型，不支持解析。
 
 | ParseCode | 含义 |
 | --- | --- |
@@ -41,7 +39,7 @@ if (result.code() == ParseCode.SUCCESS) {
 | PPT/PPTX | 幻灯片文本框及表格，SLIDE 从 1 开始；不将图片、动画或讲解音频算作已解析文本。 |
 | DOC/宏文档/图片/音视频 | 明确未支持；DOCX 成功不代表 DOC 成功，H5 页面或适配接口也不代表 OCR/转写已接通。 |
 
-提取范围包括文件中的物理工作表/幻灯片（含隐藏项）；不提取 Word 页眉页脚、演讲备注或嵌入对象，不将图表图片自动转成数据。XLS 主要覆盖本轮合成验证的 BIFF8 文件，不能据此宣称所有历史 Office 版本和子格式均支持。公式缓存来自原文件，可能过期，解析器不保证其为重新计算后的结果。
+提取范围包括文件中的物理工作表/幻灯片（含隐藏项）；不提取 Word 页眉页脚、演讲备注或嵌入对象，不将图表图片自动转成数据。XLS 主要覆盖合成验证的 BIFF8 文件，不能据此宣称所有历史 Office 版本和子格式均支持。公式缓存来自原文件，可能过期，解析器不保证其为重新计算后的结果。
 
 来源结构继续沿用 `knowledge.text.SourceLocation`、`TextSection`，切片位置仍是规范化正文的码点偏移，不是原文件字节偏移。引用必须与文档版本和来源段落绑定。
 
@@ -64,7 +62,7 @@ OOXML 加载前进行容器/条目检查，提取过程中执行正文和来源�
 
 宏识别覆盖 VBA 存储/PPT 宏标记、OOXML macroEnabled/vbaProject/macroSheet 内容类型，并在 XLS 工作簿中分别检查 BoundSheet8 的类型和 BOF 子流类型。旧 XLS 的字段依据 [Microsoft BoundSheet8 规范](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/b9ec509a-235d-424e-871d-f8e721106501)；即使两处元数据只有一处声明宏表，也拒绝并返回空正文。
 
-这些限额不能保证任意恶意文件的 CPU/堆内存消耗均有硬上限。当前组件不直接向外开放；正式上传阶段还需隔离执行、超时、并发和存储控制。官方说明：[PDFBox 安全模型](https://pdfbox.apache.org/security.html)、[POI 安全处理](https://poi.apache.org/security.html)。
+这些限额不能保证任意恶意文件的 CPU/堆内存消耗均有硬上限。当前组件不直接向外开放；上传服务需结合进程隔离、超时、并发和存储控制使用。官方说明：[PDFBox 安全模型](https://pdfbox.apache.org/security.html)、[POI 安全处理](https://poi.apache.org/security.html)。
 
 ## 依赖变更
 
@@ -81,12 +79,4 @@ OCR、音视频转写和 embedding 仅定义可替换 Java 服务契约及明确
 - `ProviderAvailability`：AVAILABLE / NOT_CONFIGURED / UNAVAILABLE，仅描述配置/健康，不代表请求成功。
 - `ProviderResult<T>`：SUCCESS 必须有输出；UNAVAILABLE / FAILURE 不得包含部分值，message 非空。列表等深层不可变性由实现方遵守接口契约。
 - `Embedding`：保存不可变的非空有限 Double 列表；契约要求实现方返回与输入顺序一一对应且维度一致的向量，不提供任何伪造实现。
-- OCR 输出使用真实来源；转写来源使用实际 TIME_RANGE。以上只有接口和结果约束，本轮没有配置完成任何外部服务。
-
-## A/B 衔接核对
-
-截至本轮读取，main 仍为基础版本，A/B 的新业务只存在于各自个人分支。本轮没有把这些未合并实现复制到 C。
-
-- A 分支文档已公布 `EmployeeService.get(Authentication,userId)`、`DataScope.companyFilter(Authentication,requestedCompanyId)` 以及共享写请求 CSRF；C 后续复用其真实范围，文档访问权限仍须单独执行。A 的审批未交付。
-- B 分支已公布规则试算及本人事件接口；授权跨员工/公司日报、审批调整后的统一日记录仍未交付。C 不直接调用底层 AttendanceStore 绕过授权，也不把试算或原始事件当作最终报表数据。
-- V6 仍须在 V2～V5 按序合并后应用。本轮不增加数据库迁移、认证配置、菜单或根路由。
+- OCR 输出使用真实来源；转写来源使用实际 TIME_RANGE。以上只有接口和结果约束，没有配置完成任何外部服务。

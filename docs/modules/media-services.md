@@ -1,12 +1,8 @@
-# C本机真实服务与启动
+# 本地模型、OCR与语音服务
 
-2026-11-08：新增[正式 MySQL 与真实 AI 组合启动](c-mysql-ai.md)，支持显式非演示库、依赖与端口配置，以及独立真实服务验收；下文默认演示入口继续保留。
+运行前需在本机安装独立Python环境、Ollama、对应模型及媒体依赖。运行时和资料放在忽略目录 `artifacts`，仓库不分发模型、SDK、凭据或数据库。
 
-本机已在忽略目录 `artifacts` 安装独立 CPU 运行环境，未更改 MySQL80 等已有系统服务。无需申请付费 API，也不用把密钥发到聊天。仓库不包含模型、运行时、令牌、原始文件或数据库。
-
-## 当前电脑
-
-A 的 Windows 本机也已安装并验证真实服务（2026-11-07），不再仅依赖 C 的电脑结果。A 使用根目录 `start-ai.cmd` 打开18080端口，复用 `artifacts/classroom-demo` 内已有本机资料；不启用离线摘录提供方。详细证据及人脸待办见 [A真实AI验收](../verification/member-a-real-ai-2026-11-07.md)。Java17也会从标准 `Program Files/Java/jdk-*` 目录发现；项目 `artifacts/ffmpeg/bin` 存在完整二进制时仅向本次子进程添加PATH。其余机器仍须先安装依赖和模型。
+## 启动
 
 需要单独排查文字AI时，可在项目专用Python环境运行 `tools/c-package/run-full.py --text-only --port 18080`，该模式明确关闭OCR/转写配置。复用旧课堂资料需显式传入 `--reuse-classroom-data artifacts/classroom-demo`；仅接受本项目artifacts下已有数据库目录，不创建替代旧库。
 
@@ -36,4 +32,4 @@ OCR 配置 `LIANZHI_OCR_URL/TOKEN`，转写配置 `LIANZHI_TRANSCRIPTION_URL/TOK
 
 使用本项目专属 `OLLAMA_HOST=127.0.0.1:11439` 与 `OLLAMA_MODELS=<项目>/artifacts/local-ai/ollama-models` 启动运行时，下载 `qwen2.5:1.5b` 问答模型与 `qwen3-embedding:0.6b`。faster-whisper模型从 `Systran/faster-whisper-tiny` 下载到 `artifacts/local-ai/whisper-tiny`。运行 `python scripts/build-c-package.py` 构建并测试整合包，产生 `artifacts/c-package-latest.json`。然后使用根目录启动入口。不要将旧试验库直接放到修改过未发布V6的新包中；正式发布后不再修改迁移。
 
-实现依据：[RapidOCR官方文档](https://rapidai.github.io/RapidOCRDocs/main/quickstart/)、[faster-whisper官方项目](https://github.com/SYSTRAN/faster-whisper)、[Ollama模型库](https://ollama.com/library/qwen3-embedding:0.6b)。本机运行结果与协议替身测试分开记录，见最终验收记录。
+实现依据：[RapidOCR官方文档](https://rapidai.github.io/RapidOCRDocs/main/quickstart/)、[faster-whisper官方项目](https://github.com/SYSTRAN/faster-whisper)、[Ollama模型库](https://ollama.com/library/qwen3-embedding:0.6b)。协议测试不代替实际服务检查。

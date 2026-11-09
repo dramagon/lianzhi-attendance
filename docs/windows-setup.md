@@ -1,6 +1,6 @@
 # Windows 环境与启动
 
-可选Redis共享登录支持Windows Java连接Linux/WSL/容器Redis，默认关闭，不要求API Key。配置、启动及独立实例验收见[C共享会话](modules/c-redis-session.md)；原本机无Redis启动方式继续保留。
+可选Redis共享登录支持Windows Java连接Linux/WSL/容器Redis，默认关闭，不要求API Key。配置、启动及独立实例验收见[C共享会话](modules/redis-session.md)；原本机无Redis启动方式继续保留。
 
 ## 需要安装
 
@@ -54,9 +54,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-mysql-backen
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-mysql.ps1 -JavaHome 'C:\Program Files\Java\jdk-17'
 ```
 
-测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API及ApprovalWorkflowTest使用真实MySQL，后者无外层测试事务、使用独立连接验证提交/回滚/并发；纯策略无数据库，显式隔离迁移/并发/B工作流夹具仍为H2，分类见本轮验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
+测试脚本复用只读管理预检，建立 `lianzhi_verify` 及仅有该库权限的同名账号；密码保存在 `artifacts/mysql-verification.local.ps1`。组织/认证/头像/审批API及ApprovalWorkflowTest使用真实MySQL，后者无外层测试事务、使用独立连接验证提交/回滚/并发；纯策略无数据库，显式隔离迁移/并发/B工作流夹具仍为H2，分类见验证记录。正式 `lianzhi` 库不运行这些夹具，不自动清理已有数据。不要将根账号配置、随机密码文件或数据库文件提交仓库。
 
-A2.2已接入B正式V3与调整服务，启动按V1→V2→V3→V4→V4.1迁移。V4是申请与审计，V4.1修复原始打卡时间的微秒精度；不占用B的人脸V5。升级正式库前先使用mysqldump备份，不手工改已发布V1～V3、不启用out-of-order、不删原始事件。旧的docs候选V4已移除。全部审批写入与B使用同数据源READ_COMMITTED事务；已生效申请暂不支持撤销。
+A2.2已接入B正式V3与调整服务，启动按V1→V2→V3→V4→V4.1迁移。V4是申请与审计，V4.1修复原始打卡时间的微秒精度；不占用B的人脸V5。升级正式库前先使用mysqldump备份，不手工改已发布V1～V3、不启用out-of-order、不删原始事件。旧的docs候选V4已移除。全部审批写入与考勤服务使用同数据源READ_COMMITTED事务；已生效申请暂不支持撤销。
 
 ### 手动配置
 
@@ -87,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 - 默认绑定 `127.0.0.1`，只供本机访问。
 - 本地 HTTP 开发时 `SESSION_COOKIE_SECURE=false`，部署到 HTTPS 时设为 `true`。
 - 员工手机布局已经适配，但手机局域网联调和摄像头权限将在对应模块完善。
-- 当前不需要 Nacos、Redis、Docker 或 Kubernetes 即可体验第一阶段。
+- 当前不需要 Nacos、Redis、Docker 或 Kubernetes 即可运行基础功能。
 - 后端仅提供 API；打开 `http://127.0.0.1:8080` 不会显示前端页面，请访问 5173。
 - 如果依赖下载受网络限制，可配置自己的 Maven / npm 镜像。环境代理设置属于本机配置，不提交仓库。
 
@@ -115,10 +115,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-backend.ps1
 | 登录后刷新跳回登录 | 是否混用了 localhost 和 127.0.0.1；请统一使用 README 地址 |
 | MySQL 启动报错 | 数据库是否建立、环境变量、账号权限和 3306 端口 |
 
-2026-10-26已在本机Windows运行后端、前端构建和浏览器测试。机器安装了JDK17，但JAVA_HOME原先指向JDK8；运行项目时需显式选择JDK17，无需改动其他项目的全局配置。Node24.12.0满足最低版本，团队仍推荐22LTS。MySQL80原本已运行，3306实际可连接；前次受限检查误判为未监听，已用原生客户端和系统端口检查纠正。本轮使用用户提供的本机凭据完成MySQL8.0.28的V1/V2迁移、非演示登录及独立库集成验证，未重启MySQL服务或更改root密码。
-
-本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。本轮Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
+本机Git访问GitHub使用命令级代理：`git -c http.proxy=http://127.0.0.1:7897 fetch origin`，push同样加该选项。代理仅用于本机，不写入项目共享配置。Wrapper首次下载中央仓库返回403，使用环境变量 `$env:MVNW_REPOURL='https://maven.aliyun.com/repository/public'` 下载同一Maven3.9.11后成功；未更换项目依赖版本。
 
 旧V1库升级后账号/部门保留，company_id为空；由ADMIN明确建立公司、部门并调整员工归属，HR分配公司前无公司业务访问权。不要删除原库来绕过升级。浏览器完整验收建议使用另一个空演示库或独立内存库，避免验收账号进入原有数据。
-
-2026-10-31 三人整合版本仍使用上述启动方式。登录后“考勤工作台”“我的申请”和“业务助手”的本人记录查询可用；知识库上传/检索及模型提问保持关闭，不需要配置模型来运行现有业务。整合不新增数据库迁移，当前正式版本为 V4.1。完整验收使用独立 `lianzhi_verify` 演示实例，结束后须切回正式 MySQL 配置；不要在正式库开启演示模式。实际结果见[本轮整合验收](verification/member-a-integration-2026-10-31.md)。

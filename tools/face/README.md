@@ -1,6 +1,6 @@
 # Windows 本机人脸现场测试
 
-先构建后端，安装官方Windows x64 ArcFace Java V3.0运行库并将APPID、SDKKEY放到 `artifacts/arcsoft-credentials.local.ps1`。本机路径同 `docs/modules/b-face-integration.md`。双击根目录 `start-face-test.cmd`，窗口出现 `FACE_TRIAL_READY` 后打开 http://127.0.0.1:18081 。保持窗口打开；Ctrl+C退出并清除内存参照。
+先构建后端，安装官方Windows x64 ArcFace Java V3.0运行库并将APPID、SDKKEY放到 `artifacts/arcsoft-credentials.local.ps1`。本机路径同 `docs/modules/face-setup.md`。双击根目录 `start-face-test.cmd`，窗口出现 `FACE_TRIAL_READY` 后打开 http://127.0.0.1:18081 。保持窗口打开；Ctrl+C退出并清除内存参照。
 
 勾选当前采集者同意，开启摄像头，先由本人采集一张参照，再采集至少三次本人样本（适当改变距离、光线）。随后切换非本人样本，由另一位同意测试的人采集至少三次。也应测试照片、屏幕、多人、低光和偏转等拒绝场景。页面分别显示人数、基础质量、RGB活体或实际比对分数。单人和活体未通过时不提取可用特征，不显示假分数。
 

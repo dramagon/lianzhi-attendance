@@ -1,14 +1,12 @@
 # 正式 MySQL 与真实本地 AI 组合运行
 
-2026-11-08，C 收尾第一阶段，基线 A `1562571`。保留 `start-ai.cmd` 的本机凭据加载、已有课堂库复用和默认 H2 演示方式；新增显式 MySQL 组合启动，不修改旧迁移、业务接口或员工数据。
-
 ## 运行条件
 
 - Java 17+；Python 3.11 环境安装 `tools/c-media/requirements.txt`。
 - 真实 Ollama 运行时和已下载的问答、embedding 模型。默认仍为 `qwen2.5:1.5b`、`qwen3-embedding:0.6b`，可通过环境变量修改。
 - 图片/扫描 PDF 和音视频需要 RapidOCR、Whisper 模型及 FFmpeg/ffprobe；`--text-only` 可只启动真实问答和向量服务。
 - MySQL 8 空库或已按迁移管理的现有库、对应账号及 DDL/DML 权限。启动器不创建数据库、不修改账号密码、不导入演示员工；第一次空账号库由既有 AccountBootstrap 使用 `ADMIN_INITIAL_PASSWORD` 初始化管理员。
-- 最新源码构建的同源 JAR：`python scripts/build-c-package.py`。模型、运行时和业务库不包含在 JAR 中；安装说明见 [本机服务](c-media-services.md)。
+- 最新源码构建的同源 JAR：`python scripts/build-c-package.py`。模型、运行时和业务库不包含在 JAR 中；安装说明见 [本机服务](media-services.md)。
 
 ## Windows 启动
 
@@ -27,7 +25,7 @@ MySQL 模式强制 `mysql,standalone` 和 `lianzhi.demo=false`，校验 DB_URL �
 
 ## Linux 与自定义路径
 
-同一 Python 入口使用平台对应的可执行文件名，Linux 默认 venv 位于 `artifacts/c-media-venv/bin/python`、Ollama 位于 `artifacts/ollama-cpu/ollama`。本阶段不将 Windows 虹软能力计入 Linux 验收。
+同一 Python 入口使用平台对应的可执行文件名，Linux 默认 venv 位于 `artifacts/c-media-venv/bin/python`、Ollama 位于 `artifacts/ollama-cpu/ollama`。不将 Windows 虹软能力计入 Linux 验收。
 
 ```sh
 python3 tools/c-package/run-full.py --mysql --env-file artifacts/c-mysql-ai.env --no-browser
@@ -61,12 +59,11 @@ python3 tools/c-package/run-full.py --mysql --env-file artifacts/c-mysql-ai.env 
 
 `make-c-ai-fixtures.py` 默认生成 `artifacts/c-ai-fixtures`，对应验收时使用 `--fixtures artifacts/c-ai-fixtures`；也可传已有合成资料目录。三个文件为 `real-ocr-fixture.png`、`real-ocr-fixture.pdf`、`real-asr-fixture.wav`。生成器使用中文字体、位图扫描 PDF 和系统合成语音，保留已有同名文件；Windows 需中文语音，Linux 需 Noto CJK 字体与 espeak-ng（普通话语音）。不传 `--fixtures` 则只验证真实文本模型链路，媒体结果留空。脚本不安装或下载运行依赖。
 
-实跑中发现小模型会把请假结束时间生成为 null。本阶段将生成格式按请假/加班/补卡分别约束，并向模型提供完整格式说明；请假/加班结束时间不可为 null，补卡的场所和方向仍须后端业务校验。提供方忽略约束时仍拒绝无效草稿，不写申请。自然语言建议的可用性单独记入验收结果，不能将“安全拒绝且未落库”当作生成质量通过。结构化输出协议依据 [Ollama 官方说明](https://docs.ollama.com/capabilities/structured-outputs)，最终效果以本机真实推理为准。
-
 结果写入独立 `artifacts/c-mysql-ai-*/result.json`，失败也保留证据。测试数据/日志留在该目录；退出时关闭自己的进程并删除临时密码配置。检查范围包括真实模型带引用回答、OCR/转写及向量、跨公司/CSRF、模型建议不落库、用户确认及数据库防重、审批回写与考勤/报表/助手同口径、提供方停机恢复、MySQL/应用重启、任务租约及显式重试、身份变更和删除后引用失效。不替代生产环境验收。
 
 轻量启动边界回归：`python -m unittest discover -s scripts -p test_c_runtime.py -v`。新增 Windows/Linux CI 只验证启动配置边界；不下载模型，不将配置测试称为真实推理或 Linux 全链路通过。
 
-2026-11-09 A整合补充：`--require-suggestion-ready`要求真实模型生成可用申请，并用该模型草稿完成预览、明确确认和幂等验证；安全拒绝不算正向通过。对输入中无歧义的请假/加班/补卡类别及明确的绝对日期时间，生成格式增加动态约束，服务端再次核对；模型替换类别或时间返回错误且不写申请。业务时间按Asia/Shanghai解释，不保证所有自然语言表达均能正确生成。`--verify-backup-restore`在独占合成库上实际备份、恢复至新库，比较全部表行数和校验和；不连接现有业务库。
+H2演示/测试模式附加 `OPTIMIZE_REUSE_RESULTS=FALSE`，避免项目当前H2版本在等待锁前后复用过期查询结果。课堂库复用入口同样保留该设置；自行覆盖H2 URL时也应追加。此配置不用于MySQL。
 
-H2演示/测试模式附加 `OPTIMIZE_REUSE_RESULTS=FALSE`，避免项目当前H2版本在等待锁前后复用过期查询结果。课堂库复用入口同样保留该设置；自行覆盖H2 URL时也应追加。此配置不用于MySQL。完整并发验证及上游问题链接见[本阶段验收](../verification/member-c-mysql-ai-2026-11-08.md)。
+
+模型建议按明确类别与绝对起止时间约束生成，并在服务端复核；替换用户明确输入时拒绝写入。`--require-suggestion-ready`要求使用真实模型草稿完成确认验证；`--verify-backup-restore`验证合成库备份恢复。

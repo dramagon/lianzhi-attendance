@@ -25,7 +25,7 @@ def main():
     for name in ['start-c.ps1','start-c.cmd']:
         p=destination/name;p.write_bytes(p.read_text('utf-8').replace('\r\n','\n').replace('\n','\r\n').encode('utf-8'))
     shutil.copy2(ROOT/'deploy/.env.example',destination/'.env.example');shutil.copy2(ROOT/'tools/c-package/README.md',destination/'README.md')
-    for source in list((ROOT/'docs/modules').glob('c-*.md'))+[ROOT/'docs/verification/member-c-completion.md']:
+    for source in list((ROOT/'docs/modules').glob('*.md')):
         if source.is_file():
             target=destination/source.relative_to(ROOT);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
     shutil.make_archive(str(run/'lianzhi-c'), 'zip', destination)
