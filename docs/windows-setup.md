@@ -1,5 +1,7 @@
 # Windows 环境与启动
 
+可选Redis共享登录支持Windows Java连接Linux/WSL/容器Redis，默认关闭，不要求API Key。配置、启动及独立实例验收见[C共享会话](modules/c-redis-session.md)；原本机无Redis启动方式继续保留。
+
 ## 需要安装
 
 1. JDK 17，设置 `JAVA_HOME` 并将 Java 加入 PATH。

@@ -1,5 +1,9 @@
 # C 同源容器部署
 
+需要Redis共享会话时按[C共享会话说明](../docs/modules/c-redis-session.md)叠加 `compose.redis.yaml` 并填写本机Redis密码；默认Compose不自动启动或启用Redis。新增配置支持服务认证、健康检查、独立数据卷和受控故障行为。
+
+Windows 或 Linux 单机 MySQL + 本地真实模型组合启动见 [C 正式服务说明](../docs/modules/c-mysql-ai.md)，配置样例为 `c-mysql-ai.env.example`。本文件的 Compose 与单机启动分别验收，不共享默认数据目录。
+
 本目录提供Java17后端、Node22前端构建、Nginx同源代理和MySQL8.4配置。与B的`tools/classroom`展示包分开：此配置显式使用`mysql`，不启用demo/classroom，不生成演示账号。
 
 ## 使用

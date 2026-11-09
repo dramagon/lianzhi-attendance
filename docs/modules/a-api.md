@@ -100,6 +100,8 @@ Preview返回`applicantId,applicantName,companyId,departmentId,draft,requestedMi
 
 ## 个人头像
 
+同一数据库调整连接参数时，可用受信任部署配置 `lianzhi.avatar-database-key` 保持原头像命名空间；未设置时仍按完整数据源URL隔离，不扫描或回退到其他库目录。复用旧本机课堂资料的完整AI启动器会保留原键，避免H2缓存修复增加URL参数后头像消失。该配置只能用于同一物理数据库，不能在不同数据库间共用。
+
 所有启用账号（ADMIN、HR、EMPLOYEE）都可维护本人头像，未分配公司的HR仍可访问本人资料/头像，不能因此访问他人的公司业务。
 
 | 方法 | 路径 | 行为 |

@@ -1,4 +1,11 @@
 spring:
+  autoconfigure:
+    # Redis sessions are explicitly opt-in; dependencies alone must not replace local sessions.
+    exclude:
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   application:
     name: lianzhi-attendance
   profiles:
@@ -14,7 +21,7 @@ server:
   port: ${SERVER_PORT:8080}
   servlet:
     session:
-      timeout: 30m
+      timeout: ${LIANZHI_SESSION_TIMEOUT:30m}
       cookie:
         http-only: true
         same-site: lax
@@ -27,6 +34,18 @@ mybatis:
     map-underscore-to-camel-case: true
     local-cache-scope: statement
 lianzhi:
+  session:
+    redis:
+      enabled: ${LIANZHI_REDIS_ENABLED:false}
+      host: ${LIANZHI_REDIS_HOST:127.0.0.1}
+      port: ${LIANZHI_REDIS_PORT:6379}
+      database: ${LIANZHI_REDIS_DATABASE:0}
+      username: ${LIANZHI_REDIS_USERNAME:}
+      password: ${LIANZHI_REDIS_PASSWORD:}
+      tls: ${LIANZHI_REDIS_TLS:false}
+      namespace: ${LIANZHI_REDIS_NAMESPACE:lianzhi:session:v1}
+      connect-timeout: ${LIANZHI_REDIS_CONNECT_TIMEOUT:1s}
+      command-timeout: ${LIANZHI_REDIS_COMMAND_TIMEOUT:1s}
   demo: false
   avatar-directory: ${AVATAR_DIRECTORY:./data/avatars}
   face:

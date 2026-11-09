@@ -35,9 +35,14 @@ public class KnowledgeDocuments implements CitedAnswerService.Sources {
     private final TextChunker chunker=new TextChunker(new ChunkingOptions(800,120,160_000,1000,200));
     private static final String COLUMNS="d.id,d.version,d.company_id,d.owner_user_id,d.visibility,d.name,d.sha256,d.byte_size,d.processing,d.indexing,d.message,d.chunk_count,d.created_at,d.updated_at,d.index_model";
     public KnowledgeDocuments(JdbcTemplate jdbc,ObjectMapper json,KnowledgeIdentity identity,DataScope scope,OrganizationMapper organizations,AccountMapper accounts,EmbeddingProvider embeddings,DocumentContentProcessor processor,PlatformTransactionManager manager,
-        @Value("${LIANZHI_KNOWLEDGE_ENABLED:true}") boolean enabled,@Value("${LIANZHI_EMBEDDING_BASE_URL:}") String base,@Value("${LIANZHI_EMBEDDING_MODEL:}") String model,@Value("${LIANZHI_EMBEDDING_REVISION:1}") String revision){
+        @Value("${LIANZHI_KNOWLEDGE_ENABLED:true}") boolean enabled,@Value("${LIANZHI_EMBEDDING_BASE_URL:}") String base,@Value("${LIANZHI_EMBEDDING_MODEL:}") String model,@Value("${LIANZHI_EMBEDDING_REVISION:1}") String revision,
+        @Value("${LIANZHI_EMBEDDING_DISCOVERY:false}") boolean discovery,
+        @Value("${LIANZHI_NACOS_NAMESPACE:}") String namespace,
+        @Value("${LIANZHI_NACOS_GROUP:DEFAULT_GROUP}") String group){
         this.jdbc=jdbc;this.json=json;this.identity=identity;this.scope=scope;this.organizations=organizations;this.accounts=accounts;this.embeddings=embeddings;this.processor=processor;this.enabled=enabled;
-        tx=new TransactionTemplate(manager);tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);modelKey=hash((base+"\n"+model+"\n"+revision).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        tx=new TransactionTemplate(manager);tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        String indexSource = discovery ? "nacos:" + namespace + "/" + group : base;
+        modelKey=hash((indexSource+"\n"+model+"\n"+revision).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
     private Doc map(ResultSet r,int n)throws java.sql.SQLException{boolean stale="READY".equals(r.getString("indexing"))&&!modelKey.equals(r.getString("index_model"));return new Doc(UUID.fromString(r.getString("id")),r.getLong("version"),r.getString("name"),new DocumentAccess(r.getLong("company_id"),r.getLong("owner_user_id"),DocumentAccess.Visibility.valueOf(r.getString("visibility"))),r.getString("sha256"),r.getLong("byte_size"),r.getString("processing"),stale?"STALE":r.getString("indexing"),stale?"向量配置已变化，请重建索引；文字检索可用":r.getString("message"),r.getInt("chunk_count"),r.getLong("created_at"),r.getLong("updated_at"));}
     public boolean available(){if(!enabled)return false;try{return jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='6' AND success=TRUE",Long.class)==1;}catch(RuntimeException e){return false;}}

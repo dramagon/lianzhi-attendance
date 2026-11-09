@@ -61,7 +61,7 @@ try {
         New-Item -ItemType Directory -Force (Join-Path $demoRoot 'demo-data') | Out-Null
         $demoArguments = @('-jar', 'app.jar', '--spring.profiles.active=demo,classroom', '--lianzhi.demo=true',
             '--server.address=127.0.0.1', '--server.port=18080', '--server.servlet.session.cookie.secure=false',
-            '--spring.datasource.url=jdbc:h2:file:./demo-data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE',
+            '--spring.datasource.url=jdbc:h2:file:./demo-data/lianzhi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;OPTIMIZE_REUSE_RESULTS=FALSE',
             '--spring.datasource.username=sa', '--spring.datasource.password=', '--lianzhi.avatar-directory=./demo-data/avatars',
             '--lianzhi.face.enabled=false', '--lianzhi.face.required-for-punch=false', '--LIANZHI_KNOWLEDGE_ENABLED=true',
             '--LIANZHI_AI_BASE_URL=', '--LIANZHI_AI_MODEL=', '--LIANZHI_EMBEDDING_BASE_URL=', '--LIANZHI_EMBEDDING_MODEL=',

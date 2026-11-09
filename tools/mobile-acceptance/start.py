@@ -91,7 +91,7 @@ https://%s:%s {
     try:
         for filename, argv, directory, process_env in [
             ('backend.log',[java,'-jar',str(jar),'--spring.profiles.active=demo','--lianzhi.demo=true',
-             '--spring.datasource.url=jdbc:h2:file:'+database.as_posix()+';MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE',
+             '--spring.datasource.url=jdbc:h2:file:'+database.as_posix()+';MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;OPTIMIZE_REUSE_RESULTS=FALSE',
              '--spring.datasource.username=sa','--spring.datasource.password=',
              '--server.address=127.0.0.1','--server.port='+str(args.backend_port),'--server.servlet.session.cookie.secure=true',
              '--lianzhi.avatar-directory='+(run/'avatars').as_posix()],ROOT/'backend',os.environ.copy()),

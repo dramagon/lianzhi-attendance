@@ -22,7 +22,7 @@ public class AvatarStorage {
     private static final long MAX_BYTES = 2 * 1024 * 1024;
     private final Path directory;
     public AvatarStorage(@Value("${lianzhi.avatar-directory:./data/avatars}") String directory,
-                         @Value("${spring.datasource.url}") String databaseUrl) {
+                         @Value("${lianzhi.avatar-database-key:${spring.datasource.url}}") String databaseUrl) {
         try {
             String namespace=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(databaseUrl.getBytes(StandardCharsets.UTF_8))).substring(0,16);
             this.directory=Path.of(directory).toAbsolutePath().normalize().resolve(namespace);

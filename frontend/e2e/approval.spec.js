@@ -43,6 +43,8 @@ test('审批入口和后台接口都限制管理角色，历史读取真实记�
   await expect(page.getByRole('heading', { name: '当前账号没有访问权限' })).toBeVisible()
   expect((await page.request.get('/api/approvals/inbox')).status()).toBe(403)
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  expect((await page.request.get('/api/auth/session')).status()).toBe(401)
   await login(page, '人事专员')
   await page.goto('/approvals/review')
   await expect(page.getByRole('heading', { name: '审批工作台', exact: true })).toBeVisible()
@@ -126,6 +128,8 @@ test('真实申请→人事同意→考勤请假来源，重复审批不会重�
     await expect(worker.getByRole('status').filter({ hasText: '已提交，等待审批' })).toBeVisible()
     const entry = (await (await worker.request.get('/api/approvals/me')).json()).data.items[0]
     await page.getByRole('button', { name: '退出登录', exact: true }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    expect((await page.request.get('/api/auth/session')).status()).toBe(401)
     await login(page, '人事专员')
     await page.goto('/approvals/review')
     await page.getByRole('button', { name: `查看 #${entry.request.id}`, exact: true }).click()
