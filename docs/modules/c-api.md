@@ -46,3 +46,4 @@
 `GET /api/assistant/status`的`modelConfiguration`增加`OFFLINE_EXTRACTIVE`：仅`classroom`配置与`lianzhi.demo=true`同时启用时，使用课堂原文摘录器。`/ask`请求和响应结构不变，仍由CitedAnswerService执行实际文字检索、权限、版本和原文引用校验。摘录明确说明“非生成式AI”；没有可读来源返回NO_EVIDENCE，不创建申请或执行审批。普通模式的NOT_CONFIGURED、CONFIGURED_NOT_VERIFIED和Ollama路径保持原行为。
 
 前端在OFFLINE_EXTRACTIVE模式允许有来源问答，关闭依赖真实模型的申请建议按钮；原有手工填写、预览和显式确认流程保留。课堂启动脚本清空外部模型、Embedding、OCR和转写地址，确保离线可重复运行。此模式不代表已通过真实大模型、向量、OCR或转写验收。
+可选[向量服务注册与调用](../../deploy/embedding-discovery.md)使用独立工作进程及内部接口 `POST /internal/v1/embeddings`，用户侧知识库 API 沿用现有权限和响应。
