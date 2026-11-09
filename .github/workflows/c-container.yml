@@ -23,3 +23,23 @@ jobs:
           path: |
             artifacts/lianzhi-c-verify-*/result.json
             artifacts/lianzhi-c-verify-*/*.log
+  kubernetes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: lianzhi-verify
+      - name: 部署同源应用并验证 MySQL、重启与 PVC
+        run: python3 scripts/test-c-kubernetes.py --cluster lianzhi-verify
+      - name: 记录集群诊断
+        if: failure()
+        run: |
+          kubectl --context kind-lianzhi-verify -n lianzhi get pods,svc,pvc
+          kubectl --context kind-lianzhi-verify -n lianzhi get events
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c-kubernetes-verification
+          path: artifacts/c-kubernetes/
